@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>きょむうさ猛プッシュ - CasLive</title>
+
+<!-- ===== SEO ===== -->
+<meta name="description" content="推しと、もっと近づくライブ配信アプリ「CasLive」のフックゲーム。きょむうさを猛プッシュして、ノリを届けよう。"/>
+<meta name="keywords" content="CasLive,キャスライブ,ライブ配信,推し活,ライバー,きょむうさ,ミニゲーム,リズムゲーム"/>
+<meta name="robots" content="index, follow"/>
+<meta name="theme-color" content="#2A0B4A"/>
+<!-- ↓ 本番デプロイ時に正しい URL に差し替え -->
+<link rel="canonical" href="https://caslive.jp/game/"/>
+
+<!-- ===== Open Graph ===== -->
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="きょむうさ猛プッシュ - CasLive"/>
+<meta property="og:description" content="推しと、もっと近づくライブ配信アプリ「CasLive」のフックゲーム。きょむうさを猛プッシュして、ノリを届けよう。"/>
+<meta property="og:image" content="https://caslive.jp/game/assets/ogp.png"/>
+<meta property="og:image:width" content="1260"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="きょむうさ猛プッシュ タイトル"/>
+<meta property="og:url" content="https://caslive.jp/game/"/>
+<meta property="og:site_name" content="CasLive"/>
+<meta property="og:locale" content="ja_JP"/>
+
+<!-- ===== Twitter Card ===== -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="きょむうさ猛プッシュ - CasLive"/>
+<meta name="twitter:description" content="推しと、もっと近づくライブ配信アプリ「CasLive」のフックゲーム。きょむうさを猛プッシュして、ノリを届けよう。"/>
+<meta name="twitter:image" content="https://caslive.jp/game/assets/ogp.png"/>
+
+<!-- ===== Favicons / PWA hints ===== -->
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png"/>
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="./favicon-192.png"/>
+<link rel="shortcut icon" href="./favicon.ico"/>
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-title" content="きょむうさ猛プッシュ"/>
+<meta name="application-name" content="きょむうさ猛プッシュ"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+<!-- ===== Structured Data (Schema.org) ===== -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "きょむうさ猛プッシュ",
+  "description": "推しと、もっと近づくライブ配信アプリ「CasLive」のフックゲーム。きょむうさを猛プッシュして、ノリを届けよう。",
+  "url": "https://caslive.jp/game/",
+  "image": "https://caslive.jp/game/assets/ogp.png",
+  "inLanguage": "ja",
+  "genre": "Rhythm",
+  "playMode": "SinglePlayer",
+  "operatingSystem": "Web",
+  "applicationCategory": "Game",
+  "publisher": {
+    "@type": "Organization",
+    "name": "CasLive",
+    "url": "https://caslive.jp/"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="./style.css?v=60"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width:100%;height:100%">
+    <defs>
+      <linearGradient id="tbg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#E8B4FF"/>
+        <stop offset="100%" stop-color="#FF6B9D"/>
+      </linearGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#tbg)"/>
+    <circle cx="100" cy="100" r="46" fill="#fff" opacity="0.96"/>
+    <ellipse cx="82" cy="62" rx="12" ry="28" fill="#fff" opacity="0.96"/>
+    <ellipse cx="118" cy="62" rx="12" ry="28" fill="#fff" opacity="0.96"/>
+    <circle cx="88" cy="100" r="4" fill="#2A0B4A"/>
+    <circle cx="112" cy="100" r="4" fill="#2A0B4A"/>
+    <path d="M88 118 Q100 126 112 118" stroke="#2A0B4A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+</template>
+</head>
+<body>
+
+<div class="stage-bg-shimmer" aria-hidden="true"></div>
+
+<div class="phone" data-screen-label="phone-viewport">
+  <div class="screen">
+
+    <!-- ============ SOUND TOGGLE (persistent) ============ -->
+    <button class="sound-toggle" id="sound-btn" aria-label="音声オン／オフ">
+      <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M3 10v4h4l5 5V5L7 10H3zm13.5 2A4.5 4.5 0 0014 7.97v8.05A4.5 4.5 0 0016.5 12zM14 3.23v2.06A7 7 0 0119 12a7 7 0 01-5 6.71v2.06A9 9 0 0021 12a9 9 0 00-7-8.77z"/>
+      </svg>
+      <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.22.05-.45.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.96 8.96 0 0021 12a9 9 0 00-7-8.77v2.06A7 7 0 0119 12zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.17v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73 12 10.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+      </svg>
+    </button>
+
+    <!-- ============ TITLE ============ -->
+    <section class="scene active" id="scene-title" data-screen-label="T Title">
+      <div class="title-stage">
+        <div class="title-words">
+          <img class="title-word title-word-1" id="tw-1" src="./assets/title1.webp" alt="きょむうさ"/>
+          <img class="title-word title-word-2" id="tw-2" src="./assets/title2.webp" alt="猛プッシュ"/>
+        </div>
+
+        <img class="title-kyomu" id="title-kyomu" src="./assets/kyomu_01.webp" alt="きょむうさ"/>
+      </div>
+
+      <div class="title-tagline"><span class="typed" id="tagline-typed"></span><span class="caret tagline-caret"></span></div>
+      <button class="start-btn" id="start-btn">GAME START</button>
+      <div class="powered-by">Powered by CasLive</div>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section class="scene" id="scene-game" data-screen-label="G Gameplay">
+      <div class="now-playing" id="now-playing"></div>
+      <div class="room-bg" aria-hidden="true">
+        <img class="room-bg-img" src="./assets/room_scene_bg.webp" alt=""/>
+        <img class="bob bob-radio" src="./assets/part_radio.webp" alt=""/>
+        <img class="bob bob-gameboy-small" src="./assets/part_gameboy_small.webp" alt=""/>
+        <img class="bob bob-star" src="./assets/part_star.webp" alt=""/>
+      </div>
+      <div class="hologram-overlay"></div>
+      <div class="hologram-dots"></div>
+
+      <div class="hud">
+        <div class="gauge-label">
+          <span class="label-txt">SCORE <span id="tap-count">0</span></span>
+          <span class="gauge-num" id="gauge-num">0%</span>
+          <span class="timer" id="timer-label">0.0s</span>
+        </div>
+        <div class="gauge">
+          <div class="gauge-track"></div>
+          <div class="gauge-fill" id="gauge-fill"></div>
+          <div class="gauge-fill-stripes" id="gauge-fill-stripes" style="clip-path: inset(0 100% 0 0)"></div>
+          <div class="gauge-shimmer"></div>
+          <div class="gauge-pulse" id="gauge-pulse"></div>
+        </div>
+      </div>
+
+      <div class="char-stage">
+        <img class="char-img char-idle" id="character" src="./assets/kyomuusa_front.webp" alt="kyomuusa"/>
+      </div>
+
+      <div class="push-zone">
+        <div class="rhythm-wrap">
+          <div class="rhythm-ring"></div>
+          <div class="rhythm-ticks" id="rhythm-ticks"></div>
+          <div class="rhythm-indicator" id="rhythm-indicator"></div>
+          <div class="beat-badge" id="beat-badge"></div>
+          <button class="push-btn" id="push-btn" aria-label="PUSH">PUSH!</button>
+        </div>
+      </div>
+
+      <div class="particles" id="particles"></div>
+      <div class="combo-layer" id="combo-layer"></div>
+      <div class="flash" id="flash"></div>
+
+      <!-- ===== MASH MODE (99% → 30連打) ===== -->
+      <div class="mash-overlay" id="mash-overlay">
+        <div class="mash-bg-pulse"></div>
+        <div class="mash-title-wrap">
+          <img class="mash-title" src="./assets/title2.webp" alt="猛プッシュ"/>
+        </div>
+        <div class="mash-counter">
+          <span id="mash-count">0</span><span class="mash-slash">/</span><span class="mash-target">30</span>
+        </div>
+        <div class="mash-instruction">連打せよ！！</div>
+      </div>
+
+      <!-- ===== Countdown (3,2,1,GO!) ===== -->
+      <div class="countdown-overlay" id="countdown-overlay">
+        <div class="countdown-num" id="countdown-num"></div>
+      </div>
+
+      <!-- ===== FINISH!! overlay ===== -->
+      <div class="finish-overlay" id="finish-overlay">
+        <div class="finish-text">FINISH!!</div>
+      </div>
+    </section>
+
+    <!-- ============ CLEAR ============ -->
+    <section class="scene" id="scene-clear" data-screen-label="C Clear">
+
+      <div class="clear-window" id="clear-window">
+        <img class="clear-window-img" src="./assets/clear_window.webp" alt=""/>
+      </div>
+      <div class="clear-text" id="clear-text">
+        <span class="typed" id="typed"></span><span class="caret"></span>
+      </div>
+      <div class="clear-actions" id="clear-actions">
+        <button class="yn-btn yes" id="yes-btn">YES!</button>
+        <button class="yn-btn no" id="no-btn">NO...</button>
+      </div>
+    </section>
+
+    <!-- ============ VIDEO ============ -->
+    <section class="scene" id="scene-video" data-screen-label="V Splash">
+      <video id="splash-video" muted playsinline preload="auto">
+        <source src="./assets/SprashScreen.mp4" type="video/mp4"/>
+      </video>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="scene" id="scene-cta" data-screen-label="D Download">
+      <button class="retry-link" id="retry-btn">もう1回遊ぶ</button>
+
+      <div class="cta-top">
+        <div class="cta-info" id="cta-info">
+          <div class="cta-rank-wrap" id="cta-rank-wrap">
+            <div class="cta-rank-label">YOUR RANK</div>
+            <div class="cta-rank-badge" id="cta-rank-badge">?</div>
+          </div>
+
+          <div class="cta-scoreboard" id="cta-scoreboard">
+            <div class="sb-row" id="sb-row-score">
+              <span class="sb-label">SCORE</span>
+              <span class="sb-val" id="sb-score">0</span>
+            </div>
+            <div class="sb-row" id="sb-row-combo">
+              <span class="sb-label">MAX COMBO</span>
+              <span class="sb-val" id="sb-combo">0</span>
+            </div>
+            <div class="sb-row" id="sb-row-timing">
+              <span class="sb-label">TIMING BONUS</span>
+              <span class="sb-val" id="sb-timing-bonus">0</span>
+            </div>
+            <div class="sb-row" id="sb-row-time">
+              <span class="sb-label">TIME BONUS</span>
+              <span class="sb-val" id="sb-time-bonus">0</span>
+            </div>
+            <div class="sb-divider" id="sb-divider"></div>
+            <div class="sb-row sb-total-row" id="sb-row-total">
+              <span class="sb-label">合計スコア</span>
+              <span class="sb-val" id="sb-total">0</span>
+            </div>
+          </div>
+
+          <div class="cta-share" id="cta-share">
+            <div class="cta-share-label">スコアをシェア</div>
+            <div class="cta-share-btns">
+              <button class="share-btn share-x" id="share-x" aria-label="Xでシェア">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </button>
+              <button class="share-btn share-line" id="share-line" aria-label="LINEでシェア">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629v-4.77c0-.346.282-.631.63-.631h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25L11.885 10.9v2.62c0 .345-.279.629-.631.629-.346 0-.626-.284-.626-.629V8.752c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.497 3.38V8.75c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.128zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.752c0-.345.282-.63.63-.63.346 0 .628.285.628.63zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.752c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.139h1.756c.348 0 .629.283.629.63 0 .344-.282.627-.63.627M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+              </button>
+              <button class="share-btn share-threads" id="share-threads" aria-label="Threadsでシェア">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.78 3.631 2.695 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/></svg>
+              </button>
+              <button class="share-btn share-copy" id="share-copy" aria-label="リンクをコピー">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11z"/></svg>
+              </button>
+            </div>
+            <div class="cta-share-toast" id="cta-share-toast">コピーしたで！</div>
+          </div>
+
+          <div class="cta-divider"></div>
+          <div class="cta-headline">推しともっと、<br/>キョリが縮まる。</div>
+          <div class="cta-sub">
+            推した数だけ、ドラマがある。<br/>
+            あなたの「好き」は、きっと届く。<br/>
+            さあ、CasLive(キャスライブ)をはじめよう。
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-download-card">
+        <a class="cta-brand-row" href="https://caslive.app/" target="_blank" rel="noopener">
+          <img class="cta-applogo" src="./assets/applogo.webp" alt="CasLive"/>
+          <div class="cta-brand-text">
+            <div class="cta-brand-tag">推しと近づくライブ配信アプリ</div>
+            <img class="cta-brand-logo" src="./assets/caslive_logo_text.webp" alt="CasLive"/>
+          </div>
+        </a>
+        <div class="store-row">
+          <a class="store-btn store-btn-appstore" id="btn-appstore" href="#" aria-label="App Store"><img src="./assets/appstore.webp" alt="App Store"/></a>
+          <a class="store-btn store-btn-googleplay" id="btn-googleplay" href="#" aria-label="Google Play"><img src="./assets/googleplay.webp" alt="Google Play"/></a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="tweaks" id="tweaks-panel"></div>
+
+<script src="./game.js?v=59"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B14BFF"></stop>
+      <stop offset="0.5" stop-color="#FF3EA5"></stop>
+      <stop offset="1" stop-color="#3EE8FF"></stop>
+    </linearGradient>
+    <radialGradient id="g2" cx="0.5" cy="0.35" r="0.6">
+      <stop offset="0" stop-color="#FFE6FF" stop-opacity="0.8"></stop>
+      <stop offset="1" stop-color="#2A0B4A" stop-opacity="0"></stop>
+    </radialGradient>
+    <pattern id="stars" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M30 14 L33 26 L45 30 L33 34 L30 46 L27 34 L15 30 L27 26 Z" fill="#FFF1B8" opacity="0.6"></path>
+    </pattern>
+  </defs>
+  <rect width="390" height="844" fill="url(#g1)"></rect>
+  <rect width="390" height="844" fill="url(#stars)" opacity="0.35"></rect>
+  <rect width="390" height="844" fill="url(#g2)"></rect>
+
+  
+  <g transform="translate(195 300)">
+    <g transform="translate(-140 -80)">
+      <rect x="0" y="0" width="280" height="42" rx="10" fill="#FFFFFF" opacity="0.18"></rect>
+      <text x="140" y="30" font-family="Arial Black, sans-serif" font-size="18" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">PLACEHOLDER LOGO</text>
+    </g>
+    <text x="0" y="0" font-family="Georgia, serif" font-size="72" font-weight="900" fill="#FFF" text-anchor="middle" stroke="#2A0B4A" stroke-width="6" paint-order="stroke">きょむうさ</text>
+    <text x="0" y="66" font-family="Georgia, serif" font-size="56" font-weight="900" fill="#FFE600" text-anchor="middle" stroke="#2A0B4A" stroke-width="6" paint-order="stroke">猛プッシュ</text>
+  </g>
+
+  
+  <g transform="translate(195 560)" opacity="0.95">
+    <ellipse cx="0" cy="80" rx="90" ry="70" fill="#FFE8F7"></ellipse>
+    <ellipse cx="-35" cy="10" rx="18" ry="55" fill="#FFE8F7"></ellipse>
+    <ellipse cx="35" cy="10" rx="18" ry="55" fill="#FFE8F7"></ellipse>
+    <ellipse cx="-35" cy="15" rx="8" ry="40" fill="#FFB0DD"></ellipse>
+    <ellipse cx="35" cy="15" rx="8" ry="40" fill="#FFB0DD"></ellipse>
+    <circle cx="-25" cy="70" r="5" fill="#2A0B4A"></circle>
+    <circle cx="25" cy="70" r="5" fill="#2A0B4A"></circle>
+    <ellipse cx="0" cy="90" rx="6" ry="4" fill="#FF3EA5"></ellipse>
+  </g>
+
+  
+  <g font-family="Arial" font-size="32">
+    <text x="40" y="120" transform="rotate(-15 40 120)">⭐</text>
+    <text x="320" y="180" transform="rotate(20 320 180)">💖</text>
+    <text x="50" y="450" transform="rotate(10 50 450)">✨</text>
+    <text x="330" y="420" transform="rotate(-10 330 420)">🌈</text>
+  </g>
+
+  <text x="195" y="800" font-family="monospace" font-size="11" fill="#FFF" text-anchor="middle" opacity="0.6">[ title_BG.png — placeholder ]</text>
+</svg>
