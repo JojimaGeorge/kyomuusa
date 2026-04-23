@@ -309,40 +309,6 @@ body {
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
 }
-.room-bg .bob {
-  position: absolute;
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  animation: none;
-}
-.room-bg .bob-radio {
-  left: 8.43%;
-  top: 12.89%;
-  width: 34.68%;
-  animation-delay: 0ms;
-}
-.room-bg .bob-gameboy-small {
-  left: 43.11%;
-  top: 14.06%;
-  width: 13.12%;
-  animation-delay: calc(var(--beat-duration, 560ms) * -0.25);
-}
-.room-bg .bob-star {
-  left: 63.73%;
-  top: 56.24%;
-  width: 18.74%;
-  animation-name: bob-up-big;
-  animation-delay: calc(var(--beat-duration, 560ms) * -0.5);
-}
-@keyframes bob-up {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
-}
-@keyframes bob-up-big {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-7px); }
-}
 
 .hologram-overlay {
   position: absolute; inset: 0;
@@ -500,7 +466,7 @@ body {
   max-width: 95%;
   height: auto;
   filter: drop-shadow(0 10px 14px rgba(42,11,74,0.3));
-  transition: opacity 0.15s;
+  /* transition: opacity 0.15s; — removed: caused ghost artifacts on GIF swap */
 }
 /* Taller viewports (iPhone 12+, Pro Max, desktops): scale character up a bit more */
 @media (min-height: 800px) {
@@ -1416,8 +1382,7 @@ body {
 @keyframes finishFade {
   0%   { opacity: 0; }
   15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes finishText {
   0%   { transform: scale(0.3) rotate(-30deg); }
