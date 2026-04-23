@@ -130,6 +130,22 @@ const els = {
   mashCount: $('#mash-count'),
 };
 
+/* ---------- BoundingRect cache (avoid forced layout on every tap) ---------- */
+let _rectBtn = null, _rectParticles = null, _rectCombo = null;
+function updateRectCache() {
+  if (!els.pushBtn || !els.particles || !els.comboLayer) return;
+  _rectBtn       = els.pushBtn.getBoundingClientRect();
+  _rectParticles = els.particles.getBoundingClientRect();
+  _rectCombo     = els.comboLayer.getBoundingClientRect();
+}
+window.addEventListener('resize',            updateRectCache, { passive: true });
+window.addEventListener('orientationchange', updateRectCache, { passive: true });
+
+/* Parity toggles — restart CSS animations without void offsetWidth (no forced reflow) */
+let _pulseParity = false;
+let _badgeParity = false;
+let _mashPopParity = false;
+
 /* ============================================================
    Sound Manager — Web Audio (procedural SE + BGM)
    ============================================================ */
@@ -465,13 +481,22 @@ function setGifStage(key) {
   const gif = STAGE_GIFS[key];
   if (!gif) return;
   if (state.gifAdvanceTimer) { clearTimeout(state.gifAdvanceTimer); state.gifAdvanceTimer = null; }
+  const prevStage = state.gifStage;
   state.gifStage = key;
   state.gifPendingAdvance = false;
   state.gifStartAt = performance.now();
-  // Blank first to force GIF restart when re-assigning the same src (retry flow)
-  els.char.src = '';
+  // Instant-hide to prevent ghost frame during src swap
+  els.char.style.transition = 'none';
+  els.char.style.opacity = '0';
+  // Only force-blank src for same-stage retry (all stage keys map to unique files)
+  if (prevStage === key) els.char.src = '';
   els.char.src = gif.src;
   els.char.className = 'char-img char-gif';
+  // Fade back in after 2 rAFs (browser decodes first GIF frame from cache)
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    els.char.style.transition = '';
+    els.char.style.opacity = '';
+  }));
   // Bridge GIFs auto-advance to next loop when they finish
   if (!gif.loop && gif.next) {
     state.gifAdvanceTimer = setTimeout(() => {
@@ -608,9 +633,8 @@ function showBadge(rating) {
   const b = els.beatBadge;
   b.className = 'beat-badge ' + rating;
   b.textContent = rating.toUpperCase() + (rating === 'perfect' ? '!!' : (rating === 'great' ? '!' : ''));
-  // restart animation
-  void b.offsetWidth;
-  b.classList.add('show');
+  _badgeParity = !_badgeParity;
+  b.classList.add(_badgeParity ? 'show' : 'show-b');
 }
 
 const GOOD_ICONS = [
@@ -631,8 +655,8 @@ GOOD_ICONS.forEach(src => {
 });
 
 function spawnParticles(n, color) {
-  const btn = els.pushBtn.getBoundingClientRect();
-  const stage = els.particles.getBoundingClientRect();
+  const btn   = _rectBtn       || els.pushBtn.getBoundingClientRect();
+  const stage = _rectParticles || els.particles.getBoundingClientRect();
   const cx = btn.left + btn.width/2 - stage.left;
   const cy = btn.top + btn.height/2 - stage.top;
   for (let i = 0; i < n; i++) {
@@ -683,8 +707,8 @@ function spawnCombo(text, cls) {
   const t = document.createElement('div');
   t.className = 'combo-pop ' + (cls||'');
   t.textContent = text;
-  const btn = els.pushBtn.getBoundingClientRect();
-  const stage = els.comboLayer.getBoundingClientRect();
+  const btn   = _rectBtn   || els.pushBtn.getBoundingClientRect();
+  const stage = _rectCombo || els.comboLayer.getBoundingClientRect();
   const x = btn.left + btn.width * rand(0.2, 0.8) - stage.left;
   const y = btn.top + rand(-30, 20) - stage.top;
   t.style.left = x+'px'; t.style.top = y+'px';
@@ -772,8 +796,8 @@ function handleTap(ev) {
   if (TUNING.flashEnabled) doFlash(rating==='perfect' ? 0.35 : (rating==='great'?0.2:0.1));
   if (TUNING.shakeEnabled) doShake(rating==='perfect' ? 4 : (rating==='great' ? 3 : 2));
 
-  els.gaugePulse.classList.remove('pulse'); void els.gaugePulse.offsetWidth;
-  els.gaugePulse.classList.add('pulse');
+  _pulseParity = !_pulseParity;
+  els.gaugePulse.className = 'gauge-pulse ' + (_pulseParity ? 'pulse-a' : 'pulse-b');
 
   if (window.gsap) gsap.fromTo(els.pushBtn, { scale: 0.92 }, { scale: 1, duration: 0.3, ease: 'elastic.out(1.2,0.4)' });
 
@@ -811,8 +835,8 @@ function doMashTap() {
   if (state.mashCount >= state.mashTarget || cleared) return;
   state.mashCount++;
   els.mashCount.textContent = String(state.mashCount);
-  els.mashCount.classList.remove('pop'); void els.mashCount.offsetWidth;
-  els.mashCount.classList.add('pop');
+  _mashPopParity = !_mashPopParity;
+  els.mashCount.className = _mashPopParity ? 'pop' : 'pop-b';
 
   // Gauge creeps 99 → 100 proportionally to mash progress so the bar visibly fills
   state.gauge = Math.min(100, 99 + (state.mashCount / state.mashTarget));
@@ -823,17 +847,17 @@ function doMashTap() {
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');
   state.maxCombo = Math.max(state.maxCombo || 0, state.mashCount);
 
-  // Over-the-top feedback per tap: double particles + ripple + flash + shake
+  // Feedback per tap: particles + ripple + flash + shake (count halved vs normal to reduce jank)
   Snd.hit('great');
-  const n = Math.round((8 + TUNING.effectIntensity * 1.1));
+  const n = Math.round((3 + TUNING.effectIntensity * 0.55));
   spawnParticles(n);
   spawnRipple();
   if (TUNING.flashEnabled) doFlash(0.28);
   if (TUNING.shakeEnabled) doShake(3.5);
 
   // Gauge pulse for the HUD bar
-  els.gaugePulse.classList.remove('pulse'); void els.gaugePulse.offsetWidth;
-  els.gaugePulse.classList.add('pulse');
+  _pulseParity = !_pulseParity;
+  els.gaugePulse.className = 'gauge-pulse ' + (_pulseParity ? 'pulse-a' : 'pulse-b');
 
   // Button press feedback (doesn't fight with mash-pulse animation)
   els.pushBtn.classList.add('pressed');
@@ -928,6 +952,7 @@ function startGame() {
 }
 
 function beginPlay() {
+  updateRectCache();
   state.startAt = performance.now();
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
