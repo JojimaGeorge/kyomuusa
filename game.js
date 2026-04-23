@@ -555,12 +555,7 @@ function scheduleNextBeat(now) {
     // Record actual cycle length so updateIndicator can divide by the real window
     // (not the fixed interval). Prevents ring from stalling at start (audioDelay+latency > interval)
     // and from jumping mid-shrink after frame drops (audioDelay < interval).
-    // Clamp to [0.5*interval, interval+latency]: on mobile Safari, audio.currentTime can lag
-    // wall clock (iOS audio startup, stale timeupdate values), inflating audioDelay past
-    // one interval and making the ring shrink in slow motion. nextBeatAt stays audio-accurate
-    // so tap judgement is unaffected — only the ring animation is capped.
-    const rawCycle = audioDelay + latency;
-    state.beatCycleDuration = Math.max(interval * 0.5, Math.min(rawCycle, interval + latency));
+    state.beatCycleDuration = audioDelay + latency;
     state.beatIndex = nextBeatN;
   } else {
     state.nextBeatAt = now + interval;
@@ -956,10 +951,17 @@ function startGame() {
   els.scenes.game.classList.remove('finishing');
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
-  // Start BGM + resolve track meta BEFORE countdown so audio has ~2.5s to warm up.
-  // This absorbs audio startup lag (first few beats would otherwise feel slow because
-  // bgmAudio.currentTime is still 0 while scheduleNextBeat runs). By the time GO!! lands,
-  // the song is already ~2.5s in and scheduleNextBeat can lock onto the real beat grid.
+  runCountdown(beginPlay);
+}
+
+function beginPlay() {
+  // BGM starts here (at GO!!) not during countdown — pre-warming BGM during countdown
+  // broke Galaxy Chrome: audio.currentTime drifts against wall clock during the 2.5s warmup,
+  // so by the time beginPlay runs, audioDelay perpetually inflates past one interval
+  // and the rhythm ring appears slow-motion (or frozen-then-moving after cycleDuration clamp).
+  // Starting BGM here means audio.currentTime=0 when scheduleNextBeat first runs, which
+  // produces a slightly longer first cycle (~567ms vs 540ms) on PC but stays stable everywhere.
+  updateRectCache();
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
@@ -976,18 +978,10 @@ function startGame() {
       titleSpan.appendChild(s);
     });
   }
-  runCountdown(beginPlay);
-}
-
-function beginPlay() {
-  // Called when GO!! finishes - BGM is already ~2.5s into the track from runCountdown.
-  // Timer/combo/score measurement officially starts here.
-  updateRectCache();
   state.startAt = performance.now();
-  state.beatIndex = -1;  // initial scheduleNextBeat derives upcoming beat from live audioMs
+  state.beatIndex = -1;
   state.running = true;
   state.lastTapAt = 0;
-  // Initial schedule: syncs state.nextBeatAt / beatIndex to the live audio position
   scheduleNextBeat(state.startAt);
   cancelAnimationFrame(state.rafId);
   state.rafId = requestAnimationFrame(loop);
@@ -998,11 +992,11 @@ function runCountdown(onDone) {
   const numEl = els.countdownNum;
   if (!overlay || !numEl) { onDone(); return; }
   overlay.classList.add('show');
-  // Total 2500ms: BGM (started in startGame before this) gets 2.5s head start to warm up,
-  // so scheduleNextBeat in beginPlay locks onto a stable audio.currentTime instead of 0.
+  // Total 1600ms: short enough that audio hasn't had time to drift on Galaxy Chrome.
+  // BGM starts in beginPlay (after this countdown) at audio.currentTime=0.
   const steps = [
-    { text: 'READY?', dur: 1500, go: false },
-    { text: 'GO!!',   dur: 1000, go: true  },
+    { text: 'READY?', dur: 900, go: false },
+    { text: 'GO!!',   dur: 700, go: true  },
   ];
   let i = 0;
   const tick = () => {
