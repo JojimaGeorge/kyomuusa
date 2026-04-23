@@ -469,7 +469,7 @@ function renderGauge() {
   els.gaugeFillStripes.style.clipPath = `inset(0 ${100-pct}% 0 0)`;
   els.gaugeNum.textContent = Math.floor(pct) + '%';
   // Progressive hype stage: A → B → C → D → E. Never reverses.
-  if (pct >= 19 && state.gifStage === 'A' && !state.gifPendingAdvance) {
+  if (pct >= 25 && state.gifStage === 'A' && !state.gifPendingAdvance) {
     queueGifAdvance('B');
   } else if (pct >= 60 && state.gifStage === 'C' && !state.gifPendingAdvance) {
     queueGifAdvance('D');
@@ -481,22 +481,12 @@ function setGifStage(key) {
   const gif = STAGE_GIFS[key];
   if (!gif) return;
   if (state.gifAdvanceTimer) { clearTimeout(state.gifAdvanceTimer); state.gifAdvanceTimer = null; }
-  const prevStage = state.gifStage;
   state.gifStage = key;
   state.gifPendingAdvance = false;
   state.gifStartAt = performance.now();
-  // Instant-hide to prevent ghost frame during src swap
-  els.char.style.transition = 'none';
-  els.char.style.opacity = '0';
-  // Only force-blank src for same-stage retry (all stage keys map to unique files)
-  if (prevStage === key) els.char.src = '';
+  els.char.src = '';
   els.char.src = gif.src;
   els.char.className = 'char-img char-gif';
-  // Fade back in after 2 rAFs (browser decodes first GIF frame from cache)
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    els.char.style.transition = '';
-    els.char.style.opacity = '';
-  }));
   // Bridge GIFs auto-advance to next loop when they finish
   if (!gif.loop && gif.next) {
     state.gifAdvanceTimer = setTimeout(() => {

@@ -1249,9 +1249,10 @@ body {
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  padding: 0 12px;
+  padding: 0 20px;
   color: #fff;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 9999px;
   white-space: nowrap;
   pointer-events: none;
   max-width: calc(100% - 100px);
