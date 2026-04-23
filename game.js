@@ -155,18 +155,17 @@ const Snd = (() => {
   let bgmAudio = null;
   let muted = false;
   // Game BGM tracks with beat metadata.
-  // BPM is intentionally set slightly higher than each track's real BPM, so the
-  // grid runs marginally ahead of the music to match anticipatory tap timing (musicA reference).
-  // musicB was 132.06 (+1.59 over librosa 130.47) → caused ~5.5ms/beat drift → 137ms by beat 25
-  //   (greatWindow=140ms, so tapping to audio got "miss"). Reduced to 131.60 (+1.13 over 130.47
-  //    = same relative boost as A, ~4ms/beat drift = safe within greatWindow for full game length).
-  // offsetMs for B/C is shifted -30ms from the first detected beat to nudge the whole grid
+  // BPM uses librosa-measured real values. DO NOT boost BPM to create "anticipatory" feel —
+  // boosted BPM accumulates drift every beat (code interval < real interval), which puts
+  // taps outside greatWindow by beat 25-50 and outside goodWindow by beat 75+ → miss.
+  // For constant "手前で反応" feel, shift offsetMs earlier (drift-free) OR lower
+  // TUNING.beatLatencyMs. Do NOT touch bpm.
+  // offsetMs is -30ms from the first detected beat to nudge the whole grid
   // a touch earlier in wall-clock time ("手前で反応" request, 2026-04-22).
-  // Real first-30-beat BPMs: A ≈ 129.85, B ≈ 130.47 (librosa global), C ≈ 130.94.
   const GAME_BGM_TRACKS = [
-    { src: './assets/musicA.mp3', bpm: 130.97, offsetMs: 487, title: 'Milkey CasWay' },
-    { src: './assets/musicB.mp3', bpm: 131.60, offsetMs: 558, title: 'Parallel CasNight' },
-    { src: './assets/musicC.mp3', bpm: 131.50, offsetMs: 892, title: 'Signal CasLiver' },
+    { src: './assets/musicA.mp3', bpm: 129.85, offsetMs: 487, title: 'Milkey CasWay' },
+    { src: './assets/musicB.mp3', bpm: 130.47, offsetMs: 468, title: 'Parallel CasNight' },
+    { src: './assets/musicC.mp3', bpm: 130.94, offsetMs: 862, title: 'Signal CasLiver' },
   ];
   const TITLE_BGM = './assets/music_title.mp3';
   const CTA_BGM = './assets/music_end.mp3';
@@ -479,17 +478,19 @@ function renderGauge() {
 }
 
 /* ---------- Rabbit GIF stage manager ---------- */
-function setGifStage(key) {
+async function setGifStage(key) {
   const gif = STAGE_GIFS[key];
   if (!gif) return;
   if (state.gifAdvanceTimer) { clearTimeout(state.gifAdvanceTimer); state.gifAdvanceTimer = null; }
   state.gifStage = key;
   state.gifPendingAdvance = false;
-  state.gifStartAt = performance.now();
-  els.char.src = '';
+  els.char.style.visibility = 'hidden';
   els.char.src = gif.src;
+  try { await els.char.decode(); } catch (e) { /* ignore — fall through */ }
+  if (state.gifStage !== key) return;
+  els.char.style.visibility = 'visible';
   els.char.className = 'char-img char-gif';
-  // Bridge GIFs auto-advance to next loop when they finish
+  state.gifStartAt = performance.now();
   if (!gif.loop && gif.next) {
     state.gifAdvanceTimer = setTimeout(() => {
       state.gifAdvanceTimer = null;
@@ -943,7 +944,6 @@ function startGame() {
   if (els.mashCount) els.mashCount.textContent = '0';
   cleared = false;
   setGifStage('A');
-  document.documentElement.style.setProperty('--beat-duration', TUNING.beatIntervalMs + 'ms');
   renderGauge();
   els.tapCount.textContent = '000000';
   els.timer.textContent = '0.0s';
@@ -951,12 +951,10 @@ function startGame() {
   els.scenes.game.classList.remove('finishing');
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
-  runCountdown(beginPlay);
-}
-
-function beginPlay() {
-  updateRectCache();
-  state.startAt = performance.now();
+  // Start BGM + resolve track meta BEFORE countdown so audio has ~2.5s to warm up.
+  // This absorbs audio startup lag (first few beats would otherwise feel slow because
+  // bgmAudio.currentTime is still 0 while scheduleNextBeat runs). By the time GO!! lands,
+  // the song is already ~2.5s in and scheduleNextBeat can lock onto the real beat grid.
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
@@ -969,11 +967,19 @@ function beginPlay() {
       const s = document.createElement('span');
       s.className = 'np-char';
       s.style.setProperty('--ir', titleChars.length - 1 - i);
-      s.textContent = ch === ' ' ? ' ' : ch;
+      s.textContent = ch === ' ' ? ' ' : ch;
       titleSpan.appendChild(s);
     });
   }
-  state.beatIndex = -1;  // so initial scheduleNextBeat advances to beat 0 (or first upcoming)
+  runCountdown(beginPlay);
+}
+
+function beginPlay() {
+  // Called when GO!! finishes - BGM is already ~2.5s into the track from runCountdown.
+  // Timer/combo/score measurement officially starts here.
+  updateRectCache();
+  state.startAt = performance.now();
+  state.beatIndex = -1;  // initial scheduleNextBeat derives upcoming beat from live audioMs
   state.running = true;
   state.lastTapAt = 0;
   // Initial schedule: syncs state.nextBeatAt / beatIndex to the live audio position
@@ -987,9 +993,11 @@ function runCountdown(onDone) {
   const numEl = els.countdownNum;
   if (!overlay || !numEl) { onDone(); return; }
   overlay.classList.add('show');
+  // Total 2500ms: BGM (started in startGame before this) gets 2.5s head start to warm up,
+  // so scheduleNextBeat in beginPlay locks onto a stable audio.currentTime instead of 0.
   const steps = [
-    { text: 'READY?', dur: 900, go: false },
-    { text: 'GO!!',   dur: 700, go: true  },
+    { text: 'READY?', dur: 1500, go: false },
+    { text: 'GO!!',   dur: 1000, go: true  },
   ];
   let i = 0;
   const tick = () => {
