@@ -555,7 +555,12 @@ function scheduleNextBeat(now) {
     // Record actual cycle length so updateIndicator can divide by the real window
     // (not the fixed interval). Prevents ring from stalling at start (audioDelay+latency > interval)
     // and from jumping mid-shrink after frame drops (audioDelay < interval).
-    state.beatCycleDuration = audioDelay + latency;
+    // Clamp to [0.5*interval, interval+latency]: on mobile Safari, audio.currentTime can lag
+    // wall clock (iOS audio startup, stale timeupdate values), inflating audioDelay past
+    // one interval and making the ring shrink in slow motion. nextBeatAt stays audio-accurate
+    // so tap judgement is unaffected — only the ring animation is capped.
+    const rawCycle = audioDelay + latency;
+    state.beatCycleDuration = Math.max(interval * 0.5, Math.min(rawCycle, interval + latency));
     state.beatIndex = nextBeatN;
   } else {
     state.nextBeatAt = now + interval;
