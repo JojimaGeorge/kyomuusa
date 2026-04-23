@@ -155,15 +155,17 @@ const Snd = (() => {
   let bgmAudio = null;
   let muted = false;
   // Game BGM tracks with beat metadata.
-  // BPM is intentionally set +1.12 higher than each track's first-30-beat real BPM, so the
-  // grid runs ahead of the music and accumulates ~+118ms "forward drift" by beat 30. That
-  // forward drift matches the user's anticipatory tap timing on musicA (the reference).
+  // BPM is intentionally set slightly higher than each track's real BPM, so the
+  // grid runs marginally ahead of the music to match anticipatory tap timing (musicA reference).
+  // musicB was 132.06 (+1.59 over librosa 130.47) → caused ~5.5ms/beat drift → 137ms by beat 25
+  //   (greatWindow=140ms, so tapping to audio got "miss"). Reduced to 131.60 (+1.13 over 130.47
+  //    = same relative boost as A, ~4ms/beat drift = safe within greatWindow for full game length).
   // offsetMs for B/C is shifted -30ms from the first detected beat to nudge the whole grid
   // a touch earlier in wall-clock time ("手前で反応" request, 2026-04-22).
-  // Real first-30-beat BPMs: A ≈ 129.85, B ≈ 130.94, C ≈ 130.94.
+  // Real first-30-beat BPMs: A ≈ 129.85, B ≈ 130.47 (librosa global), C ≈ 130.94.
   const GAME_BGM_TRACKS = [
     { src: './assets/musicA.mp3', bpm: 130.97, offsetMs: 487, title: 'Milkey CasWay' },
-    { src: './assets/musicB.mp3', bpm: 132.06, offsetMs: 558, title: 'Parallel CasNight' },
+    { src: './assets/musicB.mp3', bpm: 131.60, offsetMs: 558, title: 'Parallel CasNight' },
     { src: './assets/musicC.mp3', bpm: 131.50, offsetMs: 892, title: 'Signal CasLiver' },
   ];
   const TITLE_BGM = './assets/music_title.mp3';
@@ -547,10 +549,16 @@ function scheduleNextBeat(now) {
     const audioDelay = Math.max(0, nextBeatAudioMs - audioMs);
     // Shift wall-clock beat time forward by audio output latency so visual/judgement
     // aligns with when the user actually hears the beat.
-    state.nextBeatAt = now + audioDelay + (TUNING.beatLatencyMs || 0);
+    const latency = TUNING.beatLatencyMs || 0;
+    state.nextBeatAt = now + audioDelay + latency;
+    // Record actual cycle length so updateIndicator can divide by the real window
+    // (not the fixed interval). Prevents ring from stalling at start (audioDelay+latency > interval)
+    // and from jumping mid-shrink after frame drops (audioDelay < interval).
+    state.beatCycleDuration = audioDelay + latency;
     state.beatIndex = nextBeatN;
   } else {
     state.nextBeatAt = now + interval;
+    state.beatCycleDuration = interval;
     state.beatIndex++;
   }
 }
@@ -560,10 +568,15 @@ function updateIndicator(now) {
   const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
   const dt = state.nextBeatAt - now; // ms until next beat (positive before, negative after)
 
+  // Use actual cycle duration (audioDelay + latency) rather than fixed interval.
+  // With fixed interval: dt > interval at start → t=0 stalls for latencyMs (ring freezes).
+  // After tap jank: scheduleNextBeat fires late → audioDelay shrinks → ring jumps mid-shrink.
+  // With cycleDuration: ring always spans exactly from schedule time → nextBeatAt, no freezes/jumps.
+  const cycleDuration = Math.max(50, state.beatCycleDuration || interval);
   let scale, opacity, glow;
   if (dt >= 0) {
     // approaching beat
-    const t = 1 - Math.min(1, dt / interval); // 0 at scheduleNextBeat, 1 at beat
+    const t = Math.min(1, Math.max(0, 1 - dt / cycleDuration)); // 0 at schedule, 1 at beat
     scale = 2.2 - t * 1.2;  // 2.2 → 1.0
     opacity = 0.35 + t * 0.65;
   } else {
