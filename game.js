@@ -19,7 +19,7 @@ const TUNING = /*EDITMODE-BEGIN*/{
   "effectIntensity": 10,
   "shakeEnabled": true,
   "flashEnabled": true,
-  "particlesEnabled": false,
+  "particlesEnabled": true,
   "useAudioTimeSync": true
 }/*EDITMODE-END*/;
 
