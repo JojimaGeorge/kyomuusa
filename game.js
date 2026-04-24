@@ -69,6 +69,8 @@ const state = {
   mashCount: 0,
   mashTarget: 30,
   mashPending: false,
+  indicatorActive: false,
+  indicatorRafId: null,
 };
 
 const $ = (s) => document.querySelector(s);
@@ -306,39 +308,53 @@ const Snd = (() => {
       // Keep element + src alive so the next startBGM(sameSrc) can simply replay it.
     }
   };
+  // Attempt play() with retry. rapid src-swap + load + play sometimes makes the
+  // very first play() promise reject with AbortError or similar; retrying after
+  // a short delay usually wins. Also self-checks via audio.paused so we don't
+  // fight a play already succeeded between retries.
+  const attemptPlay = (aud, src, retriesLeft) => {
+    if (!aud || aud._src !== src) return; // element has been reused for a different track
+    const p = aud.play();
+    if (!p || !p.catch) return;
+    p.catch(() => {
+      if (retriesLeft <= 0) return;
+      setTimeout(() => {
+        if (!bgmAudio || bgmAudio !== aud) return;
+        if (aud._src !== src) return;
+        if (!aud.paused) return; // already playing (a concurrent call won)
+        attemptPlay(aud, src, retriesLeft - 1);
+      }, 150);
+    });
+  };
   const startBGM = (src) => {
     resume();
-    if (bgmAudio) {
+    // Same src: reuse the existing element (Option A — avoids new Audio spam
+    // when replaying the same track, which used to silently reject play() on
+    // mobile when rapid-recreated).
+    if (bgmAudio && bgmAudio._src === src) {
       if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-      // Restore volume in case a fade left it at 0
       bgmAudio.volume = muted ? 0 : BGM_VOLUME;
-      if (bgmAudio._src === src) {
-        // Same src: rewind + replay (don't recreate)
-        try { bgmAudio.currentTime = 0; } catch (e) {}
-        if (bgmAudio.paused) {
-          const p = bgmAudio.play();
-          if (p && p.catch) p.catch(() => {});
-        }
-        return;
-      }
-      // Different src: swap src on the same element
-      try { bgmAudio.pause(); } catch (e) {}
-      bgmAudio.src = src;
-      bgmAudio.loop = true;
-      bgmAudio._src = src;
-      try { bgmAudio.load(); } catch (e) {}
-      const p = bgmAudio.play();
-      if (p && p.catch) p.catch(() => {});
+      try { bgmAudio.currentTime = 0; } catch (e) {}
+      if (bgmAudio.paused) attemptPlay(bgmAudio, src, 2);
       return;
     }
-    // First time: create the Audio element (one-time only)
+    // Different src: destroy old element and create a new one. iOS/Galaxy
+    // silently reject the 2nd play() on an element whose previous play()
+    // promise is still pending (common when firstGesture starts title BGM,
+    // then GAME START swaps to game BGM on the same element). A fresh Audio
+    // inherits the current user-gesture context cleanly and plays reliably.
+    if (bgmAudio) {
+      try { bgmAudio.pause(); } catch (e) {}
+      try { bgmAudio.src = ''; } catch (e) {}
+      bgmAudio = null;
+    }
+    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
     const a = new Audio(src);
     a.loop = true;
     a.volume = muted ? 0 : BGM_VOLUME;
     a._src = src;
     bgmAudio = a;
-    const p = a.play();
-    if (p && p.catch) p.catch(() => {});
+    attemptPlay(a, src, 2);
   };
   const fadeOutBGM = (durationMs = 1000) => {
     if (!bgmAudio) return;
@@ -1096,12 +1112,40 @@ function startGame() {
     });
   }
 
+  // Run the rhythm ring during the countdown so the user can see the tempo
+  // before tapping. Stopped at beginPlay before the main loop takes over.
+  startIndicatorAnimation();
+
   runCountdown(beginPlay);
+}
+
+// Lightweight rAF that only runs scheduleNextBeat + updateIndicator (no judging,
+// no game state advancement). Used during runCountdown so the ring visualises
+// the music's beat phase before tap judgment goes live.
+function startIndicatorAnimation() {
+  if (state.indicatorActive) return;
+  state.indicatorActive = true;
+  const tick = () => {
+    if (!state.indicatorActive) { state.indicatorRafId = null; return; }
+    const now = performance.now();
+    scheduleNextBeat(now);
+    updateIndicator(now);
+    state.indicatorRafId = requestAnimationFrame(tick);
+  };
+  state.indicatorRafId = requestAnimationFrame(tick);
+}
+function stopIndicatorAnimation() {
+  state.indicatorActive = false;
+  if (state.indicatorRafId) {
+    cancelAnimationFrame(state.indicatorRafId);
+    state.indicatorRafId = null;
+  }
 }
 
 function beginPlay() {
   // BGM already playing + now-playing set up in startGame. Audio-time sync handles
   // drift-free judgment/visuals, so beginPlay just flips running=true.
+  stopIndicatorAnimation(); // hand off to the main loop, no double-tick
   updateRectCache();
   state.startAt = performance.now();
   state.beatIndex = -1;
@@ -1209,6 +1253,7 @@ function triggerClear() {
   state.clearTime = state.elapsedSec || ((performance.now() - state.startAt) / 1000);
   state.finalScore = computeFinalScore();
   cancelAnimationFrame(state.rafId);
+  stopIndicatorAnimation(); // safety: kill countdown rAF if it somehow leaked
   Snd.bgmStop();
   doFlash(0.6);
   // Cancel any pending stage advance; play F only after current loop GIF finishes its cycle
@@ -1588,12 +1633,24 @@ function bind() {
     else Snd.retryBgm();
   });
 
-  const firstGesture = () => {
+  // Title BGM bootstrap. Skips when the gesture is on GAME START — startFn
+  // already handles BGM via gameBgmStart there, and stomping with titleBgmStart
+  // would destroy the freshly-created game Audio (mobile pointerdown fires
+  // AFTER touchstart; capture-phase pointerdown would override the game BGM
+  // initiated in touchstart).
+  let firstGestureFired = false;
+  const firstGesture = (ev) => {
+    if (firstGestureFired) return;
+    if (ev && ev.target && ev.target.closest && ev.target.closest('.start-btn')) {
+      // Don't consume — game BGM pipeline owns this gesture
+      return;
+    }
+    firstGestureFired = true;
     if (els.scenes.title.classList.contains('active')) Snd.titleBgmStart();
     else Snd.retryBgm();
   };
-  document.addEventListener('pointerdown', firstGesture, { once: true, capture: true });
-  document.addEventListener('keydown', firstGesture, { once: true, capture: true });
+  document.addEventListener('pointerdown', firstGesture, { capture: true });
+  document.addEventListener('keydown', firstGesture, { capture: true });
 
   // Debug: 5連タップで曲選択
   on(els.scenes.title, 'pointerdown', handleTitleTap);
