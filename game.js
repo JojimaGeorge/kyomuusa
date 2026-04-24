@@ -19,7 +19,8 @@ const TUNING = /*EDITMODE-BEGIN*/{
   "effectIntensity": 10,
   "shakeEnabled": true,
   "flashEnabled": true,
-  "particlesEnabled": false
+  "particlesEnabled": false,
+  "useAudioTimeSync": true
 }/*EDITMODE-END*/;
 
 // Expose for devtools tuning (e.g., window.TUNING.beatLatencyMs = 180)
@@ -579,16 +580,22 @@ function buildTicks() {
 }
 
 /* ---------- Rhythm loop ----------
-   Beat scheduling is LOCKED to BGM audio.currentTime. No gauge-based speedup.
-   Each beat's wall-clock time derives from audio position so taps align to music. */
+   Two scheduling modes (toggle via TUNING.useAudioTimeSync):
+   - true (default): every-frame audio-time sync — re-derive beat grid from
+     audio.currentTime each frame. Eliminates wall-clock drift inside a single
+     beat cycle. Use with audio-time judgeTap + updateIndicator.
+   - false: legacy per-beat wall-clock scheduling. Re-syncs only when a beat
+     passes; drift accumulates until then. Use to revert if new path misbehaves.
+   Toggle live: window.TUNING.useAudioTimeSync = false */
 function scheduleNextBeat(now) {
   const interval = TUNING.beatIntervalMs;
   state.lastBeatInterval = interval;
   const meta = state.currentBgmMeta;
-  if (meta) {
+
+  if (TUNING.useAudioTimeSync && meta) {
+    // EVERY-FRAME audio-derived schedule. Idempotent: same audioMs → same nextBeatN.
+    const latency = TUNING.beatLatencyMs || 0;
     const audioMs = Snd.bgmCurrentTime() * 1000;
-    // Detect BGM loop wrap: audio.currentTime jumped back to ~0 because loop=true restarted the track.
-    // When that happens, reset beat grid + claim history so new beats can be scheduled/judged.
     if (state.beatIndex >= 0) {
       const expectedAudioMs = meta.offsetMs + state.beatIndex * interval;
       if (audioMs < expectedAudioMs - interval * 3) {
@@ -596,19 +603,35 @@ function scheduleNextBeat(now) {
         state.judgedBeats.clear();
       }
     }
-    // Index derivable from audio position (smallest N where offset + N*interval > audioMs)
+    // Pure audio derivation — no `state.beatIndex + 1` (that would advance
+    // every frame even without audio progress). Monotonicity is ensured by
+    // audio.currentTime itself being monotonic (loop wrap handled above).
+    const nextBeatN = Math.max(0, Math.floor((audioMs - meta.offsetMs) / interval) + 1);
+    const nextBeatAudioMs = meta.offsetMs + nextBeatN * interval;
+    const audioDelay = Math.max(0, nextBeatAudioMs - audioMs);
+    state.nextBeatAt = now + audioDelay + latency;
+    state.beatCycleDuration = Math.max(50, audioDelay + latency);
+    state.beatIndex = nextBeatN;
+    return;
+  }
+
+  // LEGACY per-beat wall-clock path (gated; runs only when a beat passes)
+  if (now < state.nextBeatAt) return;
+  if (meta) {
+    const audioMs = Snd.bgmCurrentTime() * 1000;
+    if (state.beatIndex >= 0) {
+      const expectedAudioMs = meta.offsetMs + state.beatIndex * interval;
+      if (audioMs < expectedAudioMs - interval * 3) {
+        state.beatIndex = -1;
+        state.judgedBeats.clear();
+      }
+    }
     const fromAudio = Math.max(0, Math.floor((audioMs - meta.offsetMs) / interval) + 1);
-    // Ensure monotonic advance: always > last fired index (avoid re-fire when audio drifts slightly behind wall clock)
     const nextBeatN = Math.max(fromAudio, state.beatIndex + 1);
     const nextBeatAudioMs = meta.offsetMs + nextBeatN * interval;
     const audioDelay = Math.max(0, nextBeatAudioMs - audioMs);
-    // Shift wall-clock beat time forward by audio output latency so visual/judgement
-    // aligns with when the user actually hears the beat.
     const latency = TUNING.beatLatencyMs || 0;
     state.nextBeatAt = now + audioDelay + latency;
-    // Record actual cycle length so updateIndicator can divide by the real window
-    // (not the fixed interval). Prevents ring from stalling at start (audioDelay+latency > interval)
-    // and from jumping mid-shrink after frame drops (audioDelay < interval).
     state.beatCycleDuration = audioDelay + latency;
     state.beatIndex = nextBeatN;
   } else {
@@ -618,41 +641,59 @@ function scheduleNextBeat(now) {
   }
 }
 function updateIndicator(now) {
-  // Indicator ring shrinks from 2.2x → 0.644x (matches push-btn 156 / rhythm-ring 242) as the beat approaches.
-  // It stays visible at button-size for ~180ms after the beat ("hit window" pulse), then resets for the next beat.
-  const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
-  const dt = state.nextBeatAt - now; // ms until next beat (positive before, negative after)
-
-  // Use actual cycle duration (audioDelay + latency) rather than fixed interval.
-  // With fixed interval: dt > interval at start → t=0 stalls for latencyMs (ring freezes).
-  // After tap jank: scheduleNextBeat fires late → audioDelay shrinks → ring jumps mid-shrink.
-  // With cycleDuration: ring always spans exactly from schedule time → nextBeatAt, no freezes/jumps.
-  const cycleDuration = Math.max(50, state.beatCycleDuration || interval);
   const startScale = 2.2;
-  const targetScale = 0.644; // push-btn(156) / rhythm-ring(242) — converge onto the button itself
-  let scale, opacity, glow;
-  if (dt >= 0) {
-    // approaching beat
-    const t = Math.min(1, Math.max(0, 1 - dt / cycleDuration)); // 0 at schedule, 1 at beat
-    scale = startScale - t * (startScale - targetScale); // 2.2 → 0.644
-    opacity = 0.35 + t * 0.65;
-  } else {
-    // just after beat: brief "hit" flash at button-size, then fade
-    const tAfter = -dt;
-    if (tAfter < 180) {
-      scale = targetScale + (tAfter / 180) * 0.10; // slight bloom 0.644 → 0.744
-      opacity = 1 - (tAfter / 180) * 0.7;
-    } else {
+  const targetScale = 0.644;
+  const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
+  const meta = state.currentBgmMeta;
+  let scale, opacity, dtMin;
+
+  if (TUNING.useAudioTimeSync && meta) {
+    // Audio-time path: ring phase derived from audio.currentTime so visual stays
+    // perfectly synced to the music (no wall-clock drift).
+    const latency = TUNING.beatLatencyMs || 0;
+    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const heardMs = audioMs - latency;
+    const elapsed = heardMs - meta.offsetMs;
+    if (elapsed < -interval) {
+      // More than one cycle before first downbeat — idle ring
       scale = startScale;
-      opacity = 0.0;
+      opacity = 0.35;
+      dtMin = -elapsed;
+    } else {
+      // Within approach to first beat OR any subsequent cycle. Math.floor handles
+      // negative elapsed correctly (rounds toward -∞), so phaseMs ∈ [0, interval).
+      const phaseMs = elapsed - Math.floor(elapsed / interval) * interval;
+      const t = phaseMs / interval; // 0 at last beat, 1 at next beat
+      scale = startScale - t * (startScale - targetScale);
+      opacity = 0.35 + t * 0.65;
+      dtMin = Math.min(phaseMs, interval - phaseMs);
     }
+  } else {
+    // Legacy wall-clock path
+    const cycleDuration = Math.max(50, state.beatCycleDuration || interval);
+    const dt = state.nextBeatAt - now;
+    if (dt >= 0) {
+      const t = Math.min(1, Math.max(0, 1 - dt / cycleDuration));
+      scale = startScale - t * (startScale - targetScale);
+      opacity = 0.35 + t * 0.65;
+    } else {
+      const tAfter = -dt;
+      if (tAfter < 180) {
+        scale = targetScale + (tAfter / 180) * 0.10;
+        opacity = 1 - (tAfter / 180) * 0.7;
+      } else {
+        scale = startScale;
+        opacity = 0.0;
+      }
+    }
+    dtMin = Math.abs(dt);
   }
 
   els.rhythmIndicator.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(3)})`;
   els.rhythmIndicator.style.opacity = opacity.toFixed(2);
 
-  // Always yellow, just brighter near the beat
-  if (Math.abs(dt) < TUNING.greatWindowMs) {
+  // Brighter glow near the beat (yellow always)
+  if (dtMin < TUNING.greatWindowMs) {
     els.rhythmIndicator.style.boxShadow = '0 0 40px 6px rgba(255,230,0,0.95), inset 0 0 18px rgba(255,230,0,0.6)';
   } else {
     els.rhythmIndicator.style.boxShadow = '0 0 16px rgba(255,230,0,0.55), inset 0 0 12px rgba(255,230,0,0.3)';
@@ -665,19 +706,44 @@ function updateIndicator(now) {
 // taps on an already-claimed beat are forced to miss, killing spam-tap strategies.
 function judgeTap(now) {
   const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
+  const meta = state.currentBgmMeta;
+
+  if (TUNING.useAudioTimeSync && meta) {
+    // Audio-time path: compare tap moment to beat moments in audio time directly.
+    // Eliminates wall-clock drift inside a beat cycle (the cause of session-to-session
+    // tempo feel variance — the ring/judge could be 5-30ms off audio between schedules).
+    const latency = TUNING.beatLatencyMs || 0;
+    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const heardMs = audioMs - latency;
+    const nearestN = Math.round((heardMs - meta.offsetMs) / interval);
+    let bestDt = Infinity, bestIdx = null;
+    for (const n of [nearestN - 1, nearestN, nearestN + 1]) {
+      if (n < 0) continue;
+      if (state.judgedBeats.has(n)) continue;
+      const beatMs = meta.offsetMs + n * interval;
+      const dt = Math.abs(heardMs - beatMs);
+      if (dt < bestDt) { bestDt = dt; bestIdx = n; }
+    }
+    if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
+      return { rating: 'miss', gain: TUNING.gainMiss };
+    }
+    state.judgedBeats.add(bestIdx);
+    if (bestDt <= TUNING.perfectWindowMs) return { rating: 'perfect', gain: TUNING.gainPerfect };
+    if (bestDt <= TUNING.greatWindowMs)   return { rating: 'great',   gain: TUNING.gainGreat };
+    return { rating: 'good', gain: TUNING.gainGood };
+  }
+
+  // Legacy wall-clock path
   const nextIdx = state.beatIndex;
   const prevIdx = state.beatIndex - 1;
   const dtNext = Math.abs(now - state.nextBeatAt);
   const dtPrev = Math.abs(now - (state.nextBeatAt - interval));
 
-  // Pick the nearest unjudged beat (if any). prevIdx<0 is a virtual pre-song beat, skip.
   let bestDt = Infinity;
   let bestIdx = null;
   if (prevIdx >= 0 && !state.judgedBeats.has(prevIdx) && dtPrev < bestDt) { bestDt = dtPrev; bestIdx = prevIdx; }
   if (!state.judgedBeats.has(nextIdx) && dtNext < bestDt) { bestDt = dtNext; bestIdx = nextIdx; }
 
-  // If both neighboring beats already claimed OR nearest is outside good window → miss,
-  // and do NOT claim any beat (so future legitimate taps can still land).
   if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
     return { rating: 'miss', gain: TUNING.gainMiss };
   }
@@ -959,11 +1025,11 @@ function loop() {
   els.timer.textContent = elapsedSec.toFixed(1) + 's';
   state.elapsedSec = elapsedSec;
 
-  // beat scheduling (paused during mash phase)
+  // beat scheduling (paused during mash phase). scheduleNextBeat is called every
+  // frame — its internal gate (`now < state.nextBeatAt`) handles the legacy path.
+  // The audio-time path needs every-frame re-derivation so the gate isn't applied.
   if (!state.mashMode) {
-    if (now >= state.nextBeatAt) {
-      scheduleNextBeat(now);
-    }
+    scheduleNextBeat(now);
     updateIndicator(now);
   }
 
