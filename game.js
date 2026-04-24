@@ -1156,11 +1156,11 @@ function beginPlay() {
   state.rafId = requestAnimationFrame(loop);
 }
 
-// 2-beat-per-number 3-2-1-GO! countdown locked to audio beats. BGM is already
-// playing when this runs (see startGame), so we can poll audio.currentTime and
-// land each number on an actual beat — user hears "music beat → 3 → music beat
-// → 2 → music beat → 1 → music beat → GO!" and taps in rhythm from the first
-// tap. Falls back to wall-clock if audio fails to advance within 2s.
+// READY?/GO!! countdown locked to audio beats. BGM is already playing (see
+// startGame), so we land READY? on the next available beat (≥100ms ahead so
+// it's visible) and GO!! 2 beats later. User hears the beat the moment READY?
+// appears — minimal wait while still feeling rhythm. Falls back to wall-clock
+// if audio fails to advance within 2s.
 function runCountdown(onDone) {
   const overlay = els.countdownOverlay;
   const numEl = els.countdownNum;
@@ -1170,7 +1170,7 @@ function runCountdown(onDone) {
   const meta = state.currentBgmMeta;
   const interval = TUNING.beatIntervalMs;
   const latency = TUNING.beatLatencyMs || 0;
-  const BEATS_PER_NUM = 2;
+  const BEATS_BETWEEN = 2;
 
   const showStep = (text, isGo) => {
     numEl.classList.remove('pop', 'go');
@@ -1186,54 +1186,40 @@ function runCountdown(onDone) {
   };
 
   const fallbackWallCount = () => {
-    const dur = (interval || 460) * BEATS_PER_NUM;
-    const steps = [
-      { text: '3',   dur, go: false },
-      { text: '2',   dur, go: false },
-      { text: '1',   dur, go: false },
-      { text: 'GO!', dur: 500, go: true },
-    ];
-    let i = 0;
-    const tick = () => {
-      if (i >= steps.length) { setTimeout(finish, 200); return; }
-      const s = steps[i];
-      showStep(s.text, !!s.go);
-      i++;
-      setTimeout(tick, s.dur);
-    };
-    tick();
+    showStep('READY?', false);
+    setTimeout(() => {
+      showStep('GO!!', true);
+      setTimeout(finish, 200);
+    }, (interval || 460) * BEATS_BETWEEN);
   };
 
   if (!meta || !interval) { fallbackWallCount(); return; }
 
-  // Wait until audio is confirmed playing + past first downbeat (1+ beat of intro)
   const pollStart = performance.now();
   const waitReady = () => {
     const elapsed = performance.now() - pollStart;
     const audioMs = Snd.bgmCurrentTime() * 1000;
-    const past1stBeat = audioMs >= meta.offsetMs + interval * 0.5;
-    if (!past1stBeat) {
+    // Just need audio to be advancing — don't wait for past-first-beat anymore
+    // (that added unnecessary 1+ beat of dead intro time before READY? appeared).
+    if (audioMs < 30) {
       if (elapsed > 2000) { fallbackWallCount(); return; }
       requestAnimationFrame(waitReady);
       return;
     }
-    // "3" lands on a beat at least 400ms ahead AND at least beat #3 from song start
-    // (leaves room for 1-2 beats of pure intro before count begins).
-    const minStartMs = Math.max(audioMs + 400, meta.offsetMs + 3 * interval);
-    const threeBeatN = Math.ceil((minStartMs - meta.offsetMs) / interval);
+    // READY? on the earliest beat at least 100ms ahead. With audio starting
+    // near 0, this lands on beat #0 (= offsetMs, the first downbeat) for short
+    // offsets, or skips ahead one beat for longer offsets / late-polled cases.
+    const minReadyMs = audioMs + 100;
+    const readyBeatN = Math.max(0, Math.ceil((minReadyMs - meta.offsetMs) / interval));
     const beats = [
-      { audioMs: meta.offsetMs + (threeBeatN + 0 * BEATS_PER_NUM) * interval, text: '3',   go: false },
-      { audioMs: meta.offsetMs + (threeBeatN + 1 * BEATS_PER_NUM) * interval, text: '2',   go: false },
-      { audioMs: meta.offsetMs + (threeBeatN + 2 * BEATS_PER_NUM) * interval, text: '1',   go: false },
-      { audioMs: meta.offsetMs + (threeBeatN + 3 * BEATS_PER_NUM) * interval, text: 'GO!', go: true  },
+      { audioMs: meta.offsetMs + readyBeatN * interval,                   text: 'READY?', go: false },
+      { audioMs: meta.offsetMs + (readyBeatN + BEATS_BETWEEN) * interval, text: 'GO!!',   go: true  },
     ];
     let i = 0;
     const tick = () => {
       if (i >= beats.length) { setTimeout(finish, 200); return; }
       const cur = Snd.bgmCurrentTime() * 1000;
       const b = beats[i];
-      // Trigger when user's perceived audio position (= currentTime - latency)
-      // reaches the beat — match scheduleNextBeat's latency convention.
       if (cur >= b.audioMs + latency) {
         showStep(b.text, b.go);
         i++;
