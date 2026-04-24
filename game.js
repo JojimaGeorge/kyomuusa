@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v99';
+const GAME_VERSION = 'v100';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -212,26 +212,52 @@ const Snd = (() => {
     se3:     { src: './assets/SE3.mp3',     vol: SE_VOLUME * 0.5 },
     seClear: { src: './assets/SE_clear.mp3' },
   };
-  const seCache = {};
+  // SE migrated to Web Audio (v=100) — HTMLAudio.cloneNode() spam on rapid
+  // taps was suspected to starve iOS Safari's audio resources and kill BGM
+  // mid-game. Web Audio buffer sources have no such limit and integrate with
+  // the same AudioContext as BGM for a unified pipeline.
+  const seBufferCache = new Map(); // src -> AudioBuffer
   try { muted = localStorage.getItem('kyomuusa_muted') === '1'; } catch (e) {}
 
+  const loadSeBuffer = async (src) => {
+    if (seBufferCache.has(src)) return seBufferCache.get(src);
+    const c = ensure();
+    if (!c) throw new Error('No AudioContext');
+    const resp = await fetch(src);
+    if (!resp.ok) throw new Error('SE fetch failed: ' + src);
+    const arrayBuf = await resp.arrayBuffer();
+    const audioBuf = await c.decodeAudioData(arrayBuf);
+    seBufferCache.set(src, audioBuf);
+    return audioBuf;
+  };
   const seLoad = () => {
-    Object.entries(SE_FILES).forEach(([k, def]) => {
-      if (seCache[k]) return;
-      const a = new Audio(def.src);
-      a.preload = 'auto';
-      seCache[k] = a;
-    });
+    return Promise.all(
+      Object.values(SE_FILES).map(def => loadSeBuffer(def.src).catch(() => null))
+    );
   };
   const playSE = (key, volOverride) => {
     if (muted) return;
-    const base = seCache[key];
-    if (!base) return;
-    const a = base.cloneNode(true);
-    const baseVol = (SE_FILES[key] && SE_FILES[key].vol != null) ? SE_FILES[key].vol : SE_VOLUME;
-    a.volume = volOverride != null ? volOverride : baseVol;
-    const p = a.play();
-    if (p && p.catch) p.catch(() => {});
+    const c = ensure();
+    if (!c) return;
+    const def = SE_FILES[key];
+    if (!def) return;
+    const buf = seBufferCache.get(def.src);
+    if (!buf) return; // not yet decoded — skip silently rather than pop
+    const baseVol = def.vol != null ? def.vol : SE_VOLUME;
+    const vol = volOverride != null ? volOverride : baseVol;
+    try {
+      const gain = c.createGain();
+      gain.gain.value = vol;
+      gain.connect(c.destination);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.connect(gain);
+      src.start(0);
+      src.onended = () => {
+        try { src.disconnect(); } catch (e) {}
+        try { gain.disconnect(); } catch (e) {}
+      };
+    } catch (e) {}
   };
 
   const ensure = () => {
@@ -285,6 +311,11 @@ const Snd = (() => {
     if (!bgmSource) startBGM(bgmIntendedSrc);
   };
   const getCtxState = () => ctx ? ctx.state : 'none';
+  const getBgmState = () => {
+    const src = bgmIntendedSrc ? bgmIntendedSrc.split('/').pop() : '-';
+    const playing = bgmSource ? 'yes' : 'no';
+    return 'bgm: ' + playing + ' (' + src + ')';
+  };
   const setMute = (m) => {
     muted = m;
     try { localStorage.setItem('kyomuusa_muted', m ? '1' : '0'); } catch (e) {}
@@ -294,10 +325,17 @@ const Snd = (() => {
       try { bgmGain.gain.cancelScheduledValues(now); } catch (e) {}
       bgmGain.gain.setValueAtTime(m ? 0 : BGM_VOLUME, now);
     }
-    // Unmuting: if BGM should be playing but isn't, kick it off. Handles the
-    // iPhone SE case where first gesture was the mute toggle itself and
-    // the firstGesture-triggered titleBgmStart hit the iOS unlock wall.
-    if (!m) ensurePlaying();
+    // Unmuting: ALWAYS force-restart BGM. iOS zombie source problem —
+    // a source created while ctx was suspended plays silently forever even
+    // after ctx resumes; the gain change alone won't make it audible since
+    // the source already ran through its unlock window. New source+new
+    // start time is the only reliable path back to audible BGM.
+    if (!m && bgmIntendedSrc) {
+      const src = bgmIntendedSrc;
+      // tiny timeout to let the current event handler finish before restart
+      // (avoids fighting the gesture that triggered setMute)
+      setTimeout(() => { if (bgmIntendedSrc === src) startBGM(src); }, 0);
+    }
   };
   const toggle = () => { setMute(!muted); return muted; };
   const isMuted = () => muted;
@@ -412,6 +450,17 @@ const Snd = (() => {
     source.connect(gain);
     const startAt = c.currentTime;
     source.start(startAt);
+    // Self-healing: if iOS silently ends our source (hardware interrupt,
+    // memory reclaim, suspend→resume edge case), restart it. teardownBgmSource
+    // nulls onended before stop(), so intentional stops don't trigger this.
+    source.onended = () => {
+      if (bgmIntendedSrc === src && bgmSource === source) {
+        bgmSource = null;
+        setTimeout(() => {
+          if (bgmIntendedSrc === src && !bgmSource) startBGM(src);
+        }, 30);
+      }
+    };
     bgmSource = source;
     bgmGain = gain;
     bgmStartCtxTime = startAt;
@@ -488,7 +537,7 @@ const Snd = (() => {
     if (ctx && ctx.state === 'suspended') ctx.resume();
   };
 
-  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList, unlockAudio, ensurePlaying, getCtxState };
+  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList, unlockAudio, ensurePlaying, getCtxState, getBgmState };
 })();
 
 function updateSoundBtn() {
@@ -1639,7 +1688,8 @@ function openSongPicker() {
   buildSongPicker();
   if (els.songPickerVersion) {
     const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';
-    els.songPickerVersion.textContent = GAME_VERSION + ' / audio: ' + ctxState;
+    const bgmInfo = (Snd.getBgmState && Snd.getBgmState()) || '';
+    els.songPickerVersion.textContent = GAME_VERSION + ' / ctx: ' + ctxState + (bgmInfo ? ' / ' + bgmInfo : '');
   }
   els.songPicker.classList.add('show');
   els.songPicker.setAttribute('aria-hidden', 'false');
@@ -1732,8 +1782,10 @@ function bind() {
     // from decodeAudioData.then() is silent on iPhone even though the context
     // is technically 'running' — the gesture context has expired.
     if (Snd.unlockAudio) Snd.unlockAudio();
-    // Kick off all BGM decodes in parallel so GAME START / CTA switches are instant.
+    // Kick off all BGM + SE decodes in parallel so GAME START / CTA switches
+    // are instant and taps make sound the moment judgment fires.
     if (Snd.bgmPreload) Snd.bgmPreload();
+    if (Snd.seLoad) Snd.seLoad();
     if (els.scenes.title.classList.contains('active')) Snd.titleBgmStart();
     else Snd.retryBgm();
   };
