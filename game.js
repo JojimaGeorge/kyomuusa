@@ -2,13 +2,14 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v103';
+const GAME_VERSION = 'v104';
 
 /* ---------- Ranking API ---------- */
-const RANKING_API = (typeof location !== 'undefined' &&
-  (location.hostname === 'localhost' || location.hostname === '127.0.0.1'))
-  ? 'http://localhost:8787'
-  : 'https://kyomuusa-ranking.kento-nakamura-62a.workers.dev';
+// Always use the remote Workers endpoint. The localhost fallback is intentionally
+// removed — in practice nobody has wrangler dev running locally, so localhost
+// would fail-fast with a network error and show "接続できません" even though
+// the prod API is up. For local dev, edit this constant temporarily.
+const RANKING_API = 'https://kyomuusa-ranking.kento-nakamura-62a.workers.dev';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
