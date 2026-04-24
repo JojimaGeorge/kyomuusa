@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v101';
+const GAME_VERSION = 'v102';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -317,6 +317,10 @@ const Snd = (() => {
     const playing = bgmSource ? 'yes' : 'no';
     return 'bgm: ' + playing + ' (' + src + ')';
   };
+  const getAudioSessionType = () => {
+    try { return navigator.audioSession ? navigator.audioSession.type : 'n/a'; }
+    catch (e) { return 'err'; }
+  };
   const setMute = (m) => {
     muted = m;
     try { localStorage.setItem('kyomuusa_muted', m ? '1' : '0'); } catch (e) {}
@@ -550,7 +554,7 @@ const Snd = (() => {
     if (ctx && ctx.state === 'suspended') ctx.resume();
   };
 
-  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList, unlockAudio, ensurePlaying, getCtxState, getBgmState };
+  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList, unlockAudio, ensurePlaying, getCtxState, getBgmState, getAudioSessionType };
 })();
 
 function updateSoundBtn() {
@@ -1702,7 +1706,8 @@ function openSongPicker() {
   if (els.songPickerVersion) {
     const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';
     const bgmInfo = (Snd.getBgmState && Snd.getBgmState()) || '';
-    els.songPickerVersion.textContent = GAME_VERSION + ' / ctx: ' + ctxState + (bgmInfo ? ' / ' + bgmInfo : '');
+    const session = (Snd.getAudioSessionType && Snd.getAudioSessionType()) || 'n/a';
+    els.songPickerVersion.textContent = GAME_VERSION + ' / ctx: ' + ctxState + ' / sess: ' + session + (bgmInfo ? ' / ' + bgmInfo : '');
   }
   els.songPicker.classList.add('show');
   els.songPicker.setAttribute('aria-hidden', 'false');
@@ -1877,12 +1882,20 @@ function setupTweaks() {
 
 /* ---------- Init ---------- */
 function init() {
+  // Set audioSession type to 'playback' FIRST — overrides the physical silent
+  // switch on iPhone (SE/8/etc. still have it; 16 Pro replaced it with Action
+  // Button). Without this, Web Audio is entirely silent when the ring switch
+  // is on Mute, regardless of how perfectly we unlock AudioContext. iOS 17+,
+  // no-op elsewhere.
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  } catch (e) {}
   // preload all stage GIFs
   Object.values(STAGE_GIFS).forEach(g => { new Image().src = g.src; });
-  // DON'T call Snd.seLoad() or Snd.titleBgmStart() here: both would create
-  // the AudioContext pre-gesture, which iOS Safari on older iPhone SE silently
-  // treats as permanently suspended even after resume(). firstGesture handles
-  // unlock + preload + BGM start inside a real user gesture.
+  // Pre-gesture audio init: some iOS builds stabilize with ctx created early
+  // (still suspended until firstGesture unlocks it). If v=101 style deferred
+  // init breaks SE, this is the workaround that preserved v=100 behavior.
+  Snd.seLoad();
   buildTicks();
   applyTweaks();
   bind();
@@ -1891,5 +1904,6 @@ function init() {
   animateTitle();
   typeTagline();
   showScene('title');
+  Snd.titleBgmStart();
 }
 init();
