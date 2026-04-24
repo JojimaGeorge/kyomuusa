@@ -161,51 +161,47 @@ let _mashPopParity = false;
    raw for ring phase freezes the ring during stalls and teleports on jumps,
    making mobile feel persistently off-beat.
 
-   Fix: extrapolate currentTime with wall-clock between audio samples, snap to
-   audio when it advances, hard-reset on loop wrap. Ring/judge then move smoothly
-   and stay locked to audio. */
+   Design: forward-monotonic wall-clock extrapolation from a baseline audio sample.
+   Rebase the baseline only when rawMs catches up to or surpasses extrapolation
+   (no backward snaps — those were causing "after-tap drift" where a chunk update
+   with a small audio advance would pull smoothedMs backward, making the ring
+   visibly retreat). Safety: if extrapolation runs 500ms ahead of rawMs, force
+   rebase — handles real stalls (buffering/pause) where wall-clock would overshoot. */
 const audioClock = {
-  lastAudioMs: 0,
-  lastWallMs: 0,
-  smoothedMs: 0,
+  baseAudioMs: 0,
+  baseWallMs: 0,
   primed: false,
 };
-function resetAudioClock() {
-  const raw = (typeof Snd !== 'undefined' && Snd.bgmCurrentTime) ? Snd.bgmCurrentTime() * 1000 : 0;
-  audioClock.lastAudioMs = raw;
-  audioClock.lastWallMs = performance.now();
-  audioClock.smoothedMs = raw;
-  audioClock.primed = true;
-}
 function getAudioClockMs() {
   const rawMs = Snd.bgmCurrentTime() * 1000;
   const wallMs = performance.now();
   if (!audioClock.primed) {
-    audioClock.lastAudioMs = rawMs;
-    audioClock.lastWallMs = wallMs;
-    audioClock.smoothedMs = rawMs;
+    audioClock.baseAudioMs = rawMs;
+    audioClock.baseWallMs = wallMs;
     audioClock.primed = true;
     return rawMs;
   }
-  // Loop wrap or large backward jump → hard re-sync
-  if (rawMs < audioClock.lastAudioMs - 1000) {
-    audioClock.lastAudioMs = rawMs;
-    audioClock.lastWallMs = wallMs;
-    audioClock.smoothedMs = rawMs;
+  // Loop wrap → hard re-sync
+  if (rawMs < audioClock.baseAudioMs - 1000) {
+    audioClock.baseAudioMs = rawMs;
+    audioClock.baseWallMs = wallMs;
     return rawMs;
   }
-  // Audio advanced (≥ 2ms) → re-sync
-  if (rawMs > audioClock.lastAudioMs + 2) {
-    audioClock.lastAudioMs = rawMs;
-    audioClock.lastWallMs = wallMs;
-    audioClock.smoothedMs = rawMs;
+  const extrapolated = audioClock.baseAudioMs + Math.max(0, wallMs - audioClock.baseWallMs);
+  // Raw caught up / overtook extrapolation → rebase up (no jump: rawMs == extrapolated at boundary)
+  if (rawMs >= extrapolated) {
+    audioClock.baseAudioMs = rawMs;
+    audioClock.baseWallMs = wallMs;
     return rawMs;
   }
-  // Audio stalled → extrapolate from wall-clock (cap at 150ms to avoid runaway)
-  const wallDelta = wallMs - audioClock.lastWallMs;
-  const extrap = Math.min(Math.max(0, wallDelta), 150);
-  audioClock.smoothedMs = audioClock.lastAudioMs + extrap;
-  return audioClock.smoothedMs;
+  // Runaway safety: audio stalled for real (buffering, paused) — snap back to raw
+  if (extrapolated - rawMs > 500) {
+    audioClock.baseAudioMs = rawMs;
+    audioClock.baseWallMs = wallMs;
+    return rawMs;
+  }
+  // Normal stall between chunks → trust wall-clock extrapolation, keep ring moving
+  return extrapolated;
 }
 
 /* ============================================================
