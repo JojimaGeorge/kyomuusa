@@ -982,12 +982,17 @@ function startGame() {
   els.scenes.game.classList.remove('finishing');
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
+  runCountdown(beginPlay);
+}
 
-  // Pre-start BGM here (not in beginPlay) so the intro plays during the countdown.
-  // The 3-2-1-GO! count is then synced to actual audio beats (via currentTime polling),
-  // letting the user feel the tempo before tapping. Galaxy's audio.currentTime drift
-  // is no longer a problem because scheduleNextBeat runs only AFTER audio is in
-  // steady-state (we waited multiple beats during countdown), not at audio cold start.
+function beginPlay() {
+  // BGM starts here (at GO!!) not during countdown — pre-warming BGM during countdown
+  // broke Galaxy Chrome: audio.currentTime drifts against wall clock during the 2.5s warmup,
+  // so by the time beginPlay runs, audioDelay perpetually inflates past one interval
+  // and the rhythm ring appears slow-motion (or frozen-then-moving after cycleDuration clamp).
+  // Starting BGM here means audio.currentTime=0 when scheduleNextBeat first runs, which
+  // produces a slightly longer first cycle (~567ms vs 540ms) on PC but stays stable everywhere.
+  updateRectCache();
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
@@ -1004,16 +1009,6 @@ function startGame() {
       titleSpan.appendChild(s);
     });
   }
-
-  runCountdown(beginPlay);
-}
-
-function beginPlay() {
-  // BGM and now-playing already initialized in startGame.
-  // By the time we get here, audio has been playing for ~4 beats (intro + 3-2-1 count),
-  // so audio.currentTime is in steady state and scheduleNextBeat can compute audioDelay
-  // reliably. This avoids the Galaxy cold-start drift that broke earlier pre-warm attempts.
-  updateRectCache();
   state.startAt = performance.now();
   state.beatIndex = -1;
   state.running = true;
@@ -1023,93 +1018,35 @@ function beginPlay() {
   state.rafId = requestAnimationFrame(loop);
 }
 
-// Beat-synced countdown: 3-2-1-GO! locked to actual audio beats so the user
-// rides the song's tempo into gameplay. Polls bgmCurrentTime() in rAF and
-// fires each number when audio crosses the corresponding beat (offset by
-// beatLatencyMs so the visual aligns with what the user actually hears).
-// Falls back to a wall-clock 3-2-1-GO if audio fails to start within 2s.
 function runCountdown(onDone) {
   const overlay = els.countdownOverlay;
   const numEl = els.countdownNum;
   if (!overlay || !numEl) { onDone(); return; }
   overlay.classList.add('show');
-
-  const meta = state.currentBgmMeta;
-  const interval = TUNING.beatIntervalMs;
-  const latency = TUNING.beatLatencyMs || 0;
-
-  const showStep = (text, isGo) => {
-    numEl.classList.remove('pop', 'go');
-    void numEl.offsetWidth;
-    numEl.textContent = text;
-    if (isGo) numEl.classList.add('go');
-    numEl.classList.add('pop');
-    Snd.playSE(isGo ? 'se2' : 'se1');
-  };
-  const finish = () => {
-    overlay.classList.remove('show');
-    onDone();
-  };
-
-  // Wall-clock fallback (used when audio polling fails or no meta)
-  const fallbackWallCount = () => {
-    const steps = [
-      { text: '3',   dur: interval || 460 },
-      { text: '2',   dur: interval || 460 },
-      { text: '1',   dur: interval || 460 },
-      { text: 'GO!', dur: 500, go: true },
-    ];
-    let i = 0;
-    const tick = () => {
-      if (i >= steps.length) { setTimeout(finish, 200); return; }
-      const s = steps[i];
-      showStep(s.text, !!s.go);
-      i++;
-      setTimeout(tick, s.dur);
-    };
-    tick();
-  };
-
-  if (!meta || !interval) { fallbackWallCount(); return; }
-
-  // Wait until audio is actually playing AND past the first downbeat — gives the
-  // user 1-2 beats of intro to feel the tempo, and lets audio.currentTime stabilize.
-  const pollStart = performance.now();
-  const waitReady = () => {
-    const elapsed = performance.now() - pollStart;
-    const audioMs = Snd.bgmCurrentTime() * 1000;
-    const past1stBeat = audioMs >= meta.offsetMs + interval * 0.5;
-    if (!past1stBeat) {
-      if (elapsed > 2000) { fallbackWallCount(); return; }
-      requestAnimationFrame(waitReady);
+  // Total 1600ms: short enough that audio hasn't had time to drift on Galaxy Chrome.
+  // BGM starts in beginPlay (after this countdown) at audio.currentTime=0.
+  const steps = [
+    { text: 'READY?', dur: 900, go: false },
+    { text: 'GO!!',   dur: 700, go: true  },
+  ];
+  let i = 0;
+  const tick = () => {
+    if (i >= steps.length) {
+      overlay.classList.remove('show');
+      setTimeout(onDone, 140);
       return;
     }
-    // GO! target beat: at least 1.2s ahead AND at least beat #4 from song start.
-    const minGoMs = Math.max(audioMs + 1200, meta.offsetMs + 4 * interval);
-    const goBeatN = Math.ceil((minGoMs - meta.offsetMs) / interval);
-    const goAudioMs = meta.offsetMs + goBeatN * interval;
-    const beats = [
-      { audioMs: goAudioMs - 3 * interval, text: '3',   go: false },
-      { audioMs: goAudioMs - 2 * interval, text: '2',   go: false },
-      { audioMs: goAudioMs - 1 * interval, text: '1',   go: false },
-      { audioMs: goAudioMs,                text: 'GO!', go: true  },
-    ];
-    let i = 0;
-    const tick = () => {
-      if (i >= beats.length) { setTimeout(finish, 200); return; }
-      const cur = Snd.bgmCurrentTime() * 1000;
-      const b = beats[i];
-      // Trigger when user's perceived audio position crosses the beat (audio buffer
-      // position + latency = what user hears). Matches scheduleNextBeat's convention.
-      if (cur >= b.audioMs + latency) {
-        showStep(b.text, b.go);
-        i++;
-      }
-      requestAnimationFrame(tick);
-    };
-    tick();
+    const s = steps[i];
+    numEl.classList.remove('pop', 'go');
+    void numEl.offsetWidth;
+    numEl.textContent = s.text;
+    if (s.go) numEl.classList.add('go');
+    numEl.classList.add('pop');
+    Snd.playSE(s.go ? 'se2' : 'se1');
+    i++;
+    setTimeout(tick, s.dur);
   };
-  waitReady();
+  tick();
 }
 
 let cleared = false;
@@ -1453,9 +1390,7 @@ function handleTitleTap(ev) {
 
 /* ---------- Wire up ---------- */
 function bind() {
-  // Title BGM is cut hard inside startGame (gameBgmStart → bgmStop). SE3 masks the cut,
-  // and game BGM begins immediately so the intro can play during the synced countdown.
-  const startFn = (e) => { e && e.preventDefault && e.preventDefault(); Snd.resume(); Snd.playSE('se3', 0.21); startGame(); };
+  const startFn = (e) => { e && e.preventDefault && e.preventDefault(); Snd.resume(); Snd.playSE('se3', 0.21); Snd.fadeOutBGM(1000); startGame(); };
   const on = (el, ev, fn, opts) => { if (el) el.addEventListener(ev, fn, opts); };
   on(els.startBtn, 'click', startFn);
   on(els.startBtn, 'touchstart', startFn, { passive: false });
