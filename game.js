@@ -2,7 +2,13 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v102';
+const GAME_VERSION = 'v103';
+
+/* ---------- Ranking API ---------- */
+const RANKING_API = (typeof location !== 'undefined' &&
+  (location.hostname === 'localhost' || location.hostname === '127.0.0.1'))
+  ? 'http://localhost:8787'
+  : 'https://kyomuusa-ranking.kento-nakamura-62a.workers.dev';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -73,6 +79,9 @@ const state = {
   mashPending: false,
   indicatorActive: false,
   indicatorRafId: null,
+  currentTrackId: null,
+  rankingPromise: null,
+  rankingResult: null,
 };
 
 const $ = (s) => document.querySelector(s);
@@ -140,6 +149,16 @@ const els = {
   shareToast: $('#cta-share-toast'),
   mashOverlay: $('#mash-overlay'),
   mashCount: $('#mash-count'),
+  ctaRanking: $('#cta-ranking'),
+  rkList: $('#rk-list'),
+  rkYou: $('#rk-you'),
+  rkNewBadge: $('#rk-newbadge'),
+  rkStatus: $('#rk-status'),
+  nameModal: $('#rank-name-modal'),
+  nameInput: $('#rank-name-input'),
+  nameSubmit: $('#rank-name-submit'),
+  nameSkip: $('#rank-name-skip'),
+  nameError: $('#rank-name-error'),
 };
 
 /* ---------- BoundingRect cache (avoid forced layout on every tap) ---------- */
@@ -1254,6 +1273,7 @@ function startGame() {
   // warmup) is gone because updateIndicator/judgeTap both run in audio time.
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
+  state.currentTrackId = Snd.getTrackList().findIndex(t => t.src === track.src);
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
   document.documentElement.style.setProperty('--beat-duration', TUNING.beatIntervalMs + 'ms');
   if (els.nowPlaying) {
@@ -1395,6 +1415,14 @@ function triggerClear() {
   state.running = false;
   state.clearTime = state.elapsedSec || ((performance.now() - state.startAt) / 1000);
   state.finalScore = computeFinalScore();
+  // Fire-and-forget ranking submission so the network round-trip overlaps
+  // with the clear → video → CTA animation window. Result is picked up later
+  // in renderCTAScore via state.rankingPromise.
+  state.rankingPromise = submitScore();
+  state.rankingResult = null;
+  // Capture the result so renderCTAScore can read it synchronously if the
+  // network resolved before the scoreboard animation catches up.
+  state.rankingPromise.then(r => { state.rankingResult = r; }).catch(() => {});
   cancelAnimationFrame(state.rafId);
   stopIndicatorAnimation(); // safety: kill countdown rAF if it somehow leaked
   Snd.bgmStop();
@@ -1427,6 +1455,160 @@ function showFinishOverlay() {
     showScene('clear');
     showClearSequence();
   }, CLEAR_F_PLAY_MS);
+}
+
+/* ============================================================
+   Ranking — submit + panel + name input
+   Backend: Cloudflare Workers + KV (see LP/game-api/)
+   Fire-and-forget POST in triggerClear so the network round-trip
+   overlaps with the clear/video/CTA animation (~6-8s) and the
+   result is ready by the time the CTA panel needs it.
+   ============================================================ */
+async function submitScore() {
+  const bd = state.scoreBreakdown || {};
+  const payload = {
+    version: GAME_VERSION,
+    trackId: (state.currentTrackId != null && state.currentTrackId >= 0) ? state.currentTrackId : null,
+    stats: {
+      taps: state.taps | 0,
+      clearTime: Number(state.rhythmClearSec || state.clearTime || 0),
+      maxCombo: state.maxCombo | 0,
+      perfectCount: state.perfectCount | 0,
+      greatCount: state.greatCount | 0,
+      goodCount: state.goodCount | 0,
+      missCount: state.missCount | 0,
+      hitScore: state.runningScore | 0,
+      decayTotal: Number(state.decayTotal || 0),
+    },
+  };
+  try {
+    const res = await fetch(RANKING_API + '/api/score', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.warn('[ranking] submit failed', e);
+    return null;
+  }
+}
+
+function formatName(name) {
+  if (name == null || name === '') return '---';
+  return String(name);
+}
+
+function renderRankingPanel(r) {
+  if (!els.ctaRanking) return;
+  if (!r || !Array.isArray(r.top)) {
+    if (els.rkStatus) els.rkStatus.textContent = 'ランキングに接続できません';
+    els.ctaRanking.classList.add('show');
+    els.ctaRanking.setAttribute('aria-hidden', 'false');
+    return;
+  }
+
+  // Build top rows
+  els.rkList.innerHTML = '';
+  r.top.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'rk-row' + (entry.you ? ' rk-you-row' : '');
+    row.innerHTML =
+      '<span class="rk-pos">' + (i + 1) + '</span>' +
+      '<span class="rk-name">' + formatName(entry.name) + '</span>' +
+      '<span class="rk-score">' + Number(entry.score || 0).toLocaleString('en-US') + '</span>';
+    els.rkList.appendChild(row);
+  });
+
+  // YOU row at bottom (only if not already in top5)
+  const youInTop = r.top.some(e => e.you);
+  if (!youInTop && r.you) {
+    els.rkYou.innerHTML =
+      '<span class="rk-pos">' + (r.you.position || '-') + '</span>' +
+      '<span class="rk-name">YOU</span>' +
+      '<span class="rk-score">' + Number(r.you.score || 0).toLocaleString('en-US') + '</span>';
+    els.rkYou.classList.add('show');
+  } else {
+    els.rkYou.innerHTML = '';
+    els.rkYou.classList.remove('show');
+  }
+
+  // NEW badge only when in top5
+  if (els.rkNewBadge) els.rkNewBadge.classList.toggle('show', !!r.isTop5);
+  if (els.rkStatus) els.rkStatus.textContent = '';
+
+  els.ctaRanking.classList.add('show');
+  els.ctaRanking.setAttribute('aria-hidden', 'false');
+}
+
+function hideRankingPanel() {
+  if (!els.ctaRanking) return;
+  els.ctaRanking.classList.remove('show');
+  els.ctaRanking.setAttribute('aria-hidden', 'true');
+}
+
+function showNameInput(submissionId) {
+  if (!els.nameModal) return;
+  state.pendingNameSubmission = submissionId;
+  if (els.nameInput) els.nameInput.value = '';
+  if (els.nameError) els.nameError.textContent = '';
+  if (els.nameSubmit) els.nameSubmit.disabled = false;
+  els.nameModal.classList.add('show');
+  els.nameModal.setAttribute('aria-hidden', 'false');
+  // Focus the input on open (iOS may still not open the keyboard without a
+  // direct gesture, but at least we try)
+  setTimeout(() => { try { els.nameInput && els.nameInput.focus(); } catch (e) {} }, 120);
+}
+
+function hideNameInput() {
+  if (!els.nameModal) return;
+  els.nameModal.classList.remove('show');
+  els.nameModal.setAttribute('aria-hidden', 'true');
+}
+
+async function submitName() {
+  const id = state.pendingNameSubmission;
+  if (!id) { hideNameInput(); return; }
+  const raw = (els.nameInput && els.nameInput.value) || '';
+  // Use codepoint-based slice so surrogate pairs (emoji etc.) count as 1 char,
+  // matching the server's Array.from(name).length validation.
+  const clipped = Array.from(raw).slice(0, 5).join('');
+  const name = clipped.trim();
+  if (!name) {
+    if (els.nameError) els.nameError.textContent = '名前を入れてな';
+    return;
+  }
+  if (els.nameSubmit) els.nameSubmit.disabled = true;
+  try {
+    const res = await fetch(RANKING_API + '/api/score/' + encodeURIComponent(id) + '/name', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      let msg = 'エラーが発生しました';
+      if (res.status === 409) msg = '既に登録済みやで';
+      else if (res.status === 410) msg = '他のプレイヤーに先越されたわ...';
+      else if (res.status === 400) msg = '名前に使えへん文字が入ってるで';
+      if (els.nameError) els.nameError.textContent = msg;
+      if (els.nameSubmit) els.nameSubmit.disabled = false;
+      return;
+    }
+    const data = await res.json();
+    // Merge into current ranking result + re-render
+    if (state.rankingResult) {
+      state.rankingResult.top = data.top || state.rankingResult.top;
+      state.rankingResult.you = data.you || state.rankingResult.you;
+    }
+    state.pendingNameSubmission = null;
+    hideNameInput();
+    renderRankingPanel(state.rankingResult);
+  } catch (e) {
+    console.warn('[ranking] name submit failed', e);
+    if (els.nameError) els.nameError.textContent = 'ネットワークエラー';
+    if (els.nameSubmit) els.nameSubmit.disabled = false;
+  }
 }
 
 /* ---------- Rolling number / Rank ---------- */
@@ -1504,6 +1686,8 @@ function renderCTAScore() {
   // reset rows + rank
   [els.sbRowScore, els.sbRowCombo, els.sbRowTiming, els.sbRowTime, els.sbRowTotal].forEach(r => r && r.classList.remove('show'));
   if (els.sbDivider) els.sbDivider.classList.remove('show');
+  hideRankingPanel();
+  hideNameInput();
   if (els.sbScore)       els.sbScore.textContent = '0';
   if (els.sbCombo)       els.sbCombo.textContent = '0';
   if (els.sbTimingBonus) els.sbTimingBonus.textContent = '0';
@@ -1564,6 +1748,29 @@ function renderCTAScore() {
       Snd.finish();
     }
   }, delays.rank);
+
+  // Ranking panel slides in after rank badge. If the fetch is still in flight,
+  // show as soon as it resolves. On network failure renderRankingPanel shows a
+  // connect-error status.
+  const RANKING_SHOW_DELAY = delays.rank + 900;
+  const showRanking = () => {
+    if (!state.rankingResult && !state.rankingPromise) {
+      renderRankingPanel(null);
+      return;
+    }
+    if (state.rankingResult) {
+      renderRankingPanel(state.rankingResult);
+      if (state.rankingResult.needsName) showNameInput(state.rankingResult.submissionId);
+      return;
+    }
+    // Still in flight — wait for promise
+    state.rankingPromise.then(r => {
+      state.rankingResult = r;
+      renderRankingPanel(r);
+      if (r && r.needsName) showNameInput(r.submissionId);
+    });
+  };
+  setTimeout(showRanking, RANKING_SHOW_DELAY);
 }
 
 /* ---------- SNS share ---------- */
@@ -1767,10 +1974,26 @@ function bind() {
   on(els.retryBtn, 'click', () => {
     cleared = false;
     state.running = false;
+    state.rankingResult = null;
+    state.rankingPromise = null;
+    state.pendingNameSubmission = null;
+    hideRankingPanel();
+    hideNameInput();
     Snd.titleBgmStart();
     showScene('title');
     animateTitle();
     typeTagline();
+  });
+
+  // Ranking name input modal
+  on(els.nameSubmit, 'click', (e) => { e.preventDefault(); submitName(); });
+  on(els.nameSkip, 'click', (e) => {
+    e.preventDefault();
+    state.pendingNameSubmission = null;
+    hideNameInput();
+  });
+  on(els.nameInput, 'keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitName(); }
   });
 
   on(els.soundBtn, 'click', (e) => {

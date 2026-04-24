@@ -66,7 +66,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="./style.css?v=86"/>
+<link rel="stylesheet" href="./style.css?v=87"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -231,27 +231,38 @@
             <div class="cta-rank-badge" id="cta-rank-badge">?</div>
           </div>
 
-          <div class="cta-scoreboard" id="cta-scoreboard">
-            <div class="sb-row" id="sb-row-score">
-              <span class="sb-label">SCORE</span>
-              <span class="sb-val" id="sb-score">0</span>
+          <div class="cta-scoreboard-wrap">
+            <div class="cta-scoreboard" id="cta-scoreboard">
+              <div class="sb-row" id="sb-row-score">
+                <span class="sb-label">SCORE</span>
+                <span class="sb-val" id="sb-score">0</span>
+              </div>
+              <div class="sb-row" id="sb-row-combo">
+                <span class="sb-label">MAX COMBO</span>
+                <span class="sb-val" id="sb-combo">0</span>
+              </div>
+              <div class="sb-row" id="sb-row-timing">
+                <span class="sb-label">TIMING BONUS</span>
+                <span class="sb-val" id="sb-timing-bonus">0</span>
+              </div>
+              <div class="sb-row" id="sb-row-time">
+                <span class="sb-label">TIME BONUS</span>
+                <span class="sb-val" id="sb-time-bonus">0</span>
+              </div>
+              <div class="sb-divider" id="sb-divider"></div>
+              <div class="sb-row sb-total-row" id="sb-row-total">
+                <span class="sb-label">合計スコア</span>
+                <span class="sb-val" id="sb-total">0</span>
+              </div>
             </div>
-            <div class="sb-row" id="sb-row-combo">
-              <span class="sb-label">MAX COMBO</span>
-              <span class="sb-val" id="sb-combo">0</span>
-            </div>
-            <div class="sb-row" id="sb-row-timing">
-              <span class="sb-label">TIMING BONUS</span>
-              <span class="sb-val" id="sb-timing-bonus">0</span>
-            </div>
-            <div class="sb-row" id="sb-row-time">
-              <span class="sb-label">TIME BONUS</span>
-              <span class="sb-val" id="sb-time-bonus">0</span>
-            </div>
-            <div class="sb-divider" id="sb-divider"></div>
-            <div class="sb-row sb-total-row" id="sb-row-total">
-              <span class="sb-label">合計スコア</span>
-              <span class="sb-val" id="sb-total">0</span>
+            <div class="cta-ranking" id="cta-ranking" aria-hidden="true">
+              <div class="rk-header">
+                <span class="rk-title">RANKING TOP 5</span>
+                <span class="rk-badge" id="rk-newbadge">NEW!!</span>
+              </div>
+              <div class="rk-list" id="rk-list"></div>
+              <div class="rk-you" id="rk-you"></div>
+              <div class="rk-status" id="rk-status"></div>
             </div>
           </div>
 
@@ -297,6 +308,20 @@
           <a class="store-btn store-btn-googleplay" id="btn-googleplay" href="#" aria-label="Google Play"><img src="./assets/googleplay.webp" alt="Google Play"/></a>
         </div>
       </div>
+
+      <!-- ===== Name input modal (TOP5 ランクイン時) ===== -->
+      <div class="rank-name-modal" id="rank-name-modal" aria-hidden="true">
+        <div class="rank-name-card">
+          <div class="rank-name-title">TOP5 ランクイン！</div>
+          <div class="rank-name-sub">名前を入れてな（5文字まで）</div>
+          <input class="rank-name-input" id="rank-name-input" type="text" maxlength="5" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+          <div class="rank-name-actions">
+            <button class="rank-name-skip" id="rank-name-skip">スキップ</button>
+            <button class="rank-name-submit" id="rank-name-submit">OK</button>
+          </div>
+          <div class="rank-name-error" id="rank-name-error"></div>
+        </div>
+      </div>
     </section>
 
   </div>
@@ -304,6 +329,6 @@
 
 <div class="tweaks" id="tweaks-panel"></div>
 
-<script src="./game.js?v=102"></script>
+<script src="./game.js?v=103"></script>
 </body>
 </html>
