@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v97';
+const GAME_VERSION = 'v98';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -158,42 +158,17 @@ let _pulseParity = false;
 let _badgeParity = false;
 let _mashPopParity = false;
 
-/* ---------- Audio clock (wall-clock anchor) ----------
-   v=95/96 で audio.currentTime を毎フレーム読んで smooth/snap する方式を試したが、
-   mobile で drift/hitch が残った。v=97: アプローチ変更。
+/* ---------- Audio clock (Web Audio AudioContext-derived, v=98+) ----------
+   Snd.bgmCurrentTime() now returns AudioContext-derived time (see v=98 migration
+   from HTMLAudioElement to AudioBufferSourceNode). AudioContext.currentTime is
+   sample-accurate and monotonic — the chunky-update problem that forced us to
+   build wall-clock smoothing/anchor hacks (v=95〜97) is gone upstream.
 
-   Design: `beginPlay` 時に audio.currentTime を1回だけ読んで anchor に記録し、
-   以降はひたすら wall-clock で進める。ring も判定も完全に単調増加で滑らか。
-   loop wrap (audio が戻った) だけは rawMs をチェックして再 anchor する。
-
-   前提: audio 再生レート ≒ wall-clock レート（通常成立）。ズレが体感で出るなら
-   TUNING.beatLatencyMs を調整して吸収する。 */
-const audioClock = {
-  anchorAudioMs: 0,
-  anchorWallMs: 0,
-  primed: false,
-};
-function primeAudioClock() {
-  audioClock.anchorAudioMs = Snd.bgmCurrentTime() * 1000;
-  audioClock.anchorWallMs = performance.now();
-  audioClock.primed = true;
-}
+   This function is retained as a thin wrapper so older call sites compile, but
+   it's now equivalent to Snd.bgmCurrentTime() * 1000. Kept as a choke point in
+   case per-device correction becomes needed later. */
 function getAudioClockMs() {
-  const wallMs = performance.now();
-  if (!audioClock.primed) {
-    primeAudioClock();
-    return audioClock.anchorAudioMs;
-  }
-  // Check for loop wrap: if raw rewound > 1s, re-anchor to new audio position
-  const rawMs = Snd.bgmCurrentTime() * 1000;
-  const expected = audioClock.anchorAudioMs + (wallMs - audioClock.anchorWallMs);
-  if (rawMs < expected - 1000) {
-    audioClock.anchorAudioMs = rawMs;
-    audioClock.anchorWallMs = wallMs;
-    return rawMs;
-  }
-  // Pure wall-clock extrapolation
-  return audioClock.anchorAudioMs + (wallMs - audioClock.anchorWallMs);
+  return Snd.bgmCurrentTime() * 1000;
 }
 
 /* ============================================================
@@ -202,7 +177,17 @@ function getAudioClockMs() {
 const Snd = (() => {
   let ctx = null;
   let master = null;
-  let bgmAudio = null;
+  // Web Audio BGM (v=98+): HTMLAudio was replaced with AudioBufferSourceNode for
+  // sample-accurate timing. bgmCurrentTime() now returns AudioContext-derived
+  // time, which is monotonic and not subject to the 50-200ms chunky-update
+  // problem that plagued mobile HTMLAudio.currentTime readings.
+  const bgmBufferCache = new Map(); // src -> AudioBuffer
+  let bgmSource = null;             // AudioBufferSourceNode currently playing
+  let bgmGain = null;               // GainNode for volume/fade
+  let bgmStartCtxTime = 0;          // AudioContext.currentTime at source.start()
+  let bgmBufferDuration = 0;        // buffer.duration (for loop modulo)
+  let bgmCurrentSrc = null;
+  let bgmFadeStopTimer = null;      // setTimeout handle for post-fade stop
   let muted = false;
   // Game BGM tracks with beat metadata.
   // BPM uses librosa-measured real values. DO NOT boost BPM to create "anticipatory" feel —
@@ -267,7 +252,11 @@ const Snd = (() => {
     muted = m;
     try { localStorage.setItem('kyomuusa_muted', m ? '1' : '0'); } catch (e) {}
     if (master) master.gain.value = m ? 0 : 0.7;
-    if (bgmAudio) bgmAudio.volume = m ? 0 : BGM_VOLUME;
+    if (bgmGain && ctx) {
+      const now = ctx.currentTime;
+      try { bgmGain.gain.cancelScheduledValues(now); } catch (e) {}
+      bgmGain.gain.setValueAtTime(m ? 0 : BGM_VOLUME, now);
+    }
   };
   const toggle = () => { setMute(!muted); return muted; };
   const isMuted = () => muted;
@@ -336,88 +325,97 @@ const Snd = (() => {
     noise({ dur: 0.3, gain: 0.06, filterFreq: 2500, when: 0 });
   };
 
-  let fadeTimer = null;
-  // Audio element reuse strategy: create bgmAudio once on first call, then update src
-  // for track changes. Avoids `new Audio()` spam — same-src reuse caused silent play()
-  // rejection on mobile when a freshly-paused element of the same source was recreated
-  // immediately, which left audio.currentTime at 0 forever and made scheduleNextBeat
-  // compute a huge audioDelay → rhythm ring crawled in slow motion.
-  const bgmStop = () => {
-    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-    if (bgmAudio) {
-      try { bgmAudio.pause(); } catch (e) {}
-      // Keep element + src alive so the next startBGM(sameSrc) can simply replay it.
-    }
+  // Fetch + decodeAudioData with caching. Each src only decoded once per session.
+  const loadBgmBuffer = async (src) => {
+    if (bgmBufferCache.has(src)) return bgmBufferCache.get(src);
+    const c = ensure();
+    if (!c) throw new Error('No AudioContext');
+    const resp = await fetch(src);
+    if (!resp.ok) throw new Error('BGM fetch failed: ' + src);
+    const arrayBuf = await resp.arrayBuffer();
+    const audioBuf = await c.decodeAudioData(arrayBuf);
+    bgmBufferCache.set(src, audioBuf);
+    return audioBuf;
   };
-  // Attempt play() with retry. rapid src-swap + load + play sometimes makes the
-  // very first play() promise reject with AbortError or similar; retrying after
-  // a short delay usually wins. Also self-checks via audio.paused so we don't
-  // fight a play already succeeded between retries.
-  const attemptPlay = (aud, src, retriesLeft) => {
-    if (!aud || aud._src !== src) return; // element has been reused for a different track
-    const p = aud.play();
-    if (!p || !p.catch) return;
-    p.catch(() => {
-      if (retriesLeft <= 0) return;
-      setTimeout(() => {
-        if (!bgmAudio || bgmAudio !== aud) return;
-        if (aud._src !== src) return;
-        if (!aud.paused) return; // already playing (a concurrent call won)
-        attemptPlay(aud, src, retriesLeft - 1);
-      }, 150);
-    });
+  // Preload all BGM buffers in parallel. Safe to call multiple times — cache hit skips.
+  // Should be invoked on first user gesture so subsequent startBGM is instant.
+  const bgmPreload = () => {
+    const allSrcs = [TITLE_BGM, CTA_BGM, ...GAME_BGM_TRACKS.map(t => t.src)];
+    return Promise.all(allSrcs.map(s => loadBgmBuffer(s).catch(() => null)));
+  };
+  const teardownBgmSource = () => {
+    if (bgmFadeStopTimer) { clearTimeout(bgmFadeStopTimer); bgmFadeStopTimer = null; }
+    if (bgmSource) {
+      try { bgmSource.onended = null; } catch (e) {}
+      try { bgmSource.stop(0); } catch (e) {}
+      try { bgmSource.disconnect(); } catch (e) {}
+      bgmSource = null;
+    }
+    if (bgmGain) {
+      try { bgmGain.disconnect(); } catch (e) {}
+      bgmGain = null;
+    }
+    bgmCurrentSrc = null;
+    bgmBufferDuration = 0;
+    bgmStartCtxTime = 0;
+  };
+  const bgmStop = () => { teardownBgmSource(); };
+  // Internal: create source+gain, schedule play, record anchor time.
+  const playBufferLoop = (c, src, buf) => {
+    const gain = c.createGain();
+    gain.gain.value = muted ? 0 : BGM_VOLUME;
+    gain.connect(c.destination);
+    const source = c.createBufferSource();
+    source.buffer = buf;
+    source.loop = true;
+    source.connect(gain);
+    const startAt = c.currentTime;
+    source.start(startAt);
+    bgmSource = source;
+    bgmGain = gain;
+    bgmStartCtxTime = startAt;
+    bgmCurrentSrc = src;
+    bgmBufferDuration = buf.duration;
   };
   const startBGM = (src) => {
     resume();
-    // Same src: reuse the existing element (Option A — avoids new Audio spam
-    // when replaying the same track, which used to silently reject play() on
-    // mobile when rapid-recreated).
-    if (bgmAudio && bgmAudio._src === src) {
-      if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-      bgmAudio.volume = muted ? 0 : BGM_VOLUME;
-      try { bgmAudio.currentTime = 0; } catch (e) {}
-      if (bgmAudio.paused) attemptPlay(bgmAudio, src, 2);
+    const c = ensure();
+    if (!c) return;
+    // Always teardown current source — AudioBufferSourceNode is one-shot, can't
+    // be restarted or reused. With cached buffers, recreating is cheap.
+    teardownBgmSource();
+    const cached = bgmBufferCache.get(src);
+    if (cached) {
+      playBufferLoop(c, src, cached);
       return;
     }
-    // Different src: destroy old element and create a new one. iOS/Galaxy
-    // silently reject the 2nd play() on an element whose previous play()
-    // promise is still pending (common when firstGesture starts title BGM,
-    // then GAME START swaps to game BGM on the same element). A fresh Audio
-    // inherits the current user-gesture context cleanly and plays reliably.
-    if (bgmAudio) {
-      try { bgmAudio.pause(); } catch (e) {}
-      try { bgmAudio.src = ''; } catch (e) {}
-      bgmAudio = null;
-    }
-    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-    const a = new Audio(src);
-    a.loop = true;
-    a.volume = muted ? 0 : BGM_VOLUME;
-    a._src = src;
-    bgmAudio = a;
-    attemptPlay(a, src, 2);
+    // Async load + play. During load window, bgmCurrentTime returns 0.
+    // Guard against races: if another startBGM fired while loading, abort.
+    const tokenSrc = src;
+    loadBgmBuffer(src).then((buf) => {
+      if (!buf) return;
+      if (bgmSource || bgmCurrentSrc) return; // something else took over
+      playBufferLoop(c, tokenSrc, buf);
+    }).catch(() => {});
   };
   const fadeOutBGM = (durationMs = 1000) => {
-    if (!bgmAudio) return;
-    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-    const steps = 20;
-    const stepMs = Math.max(16, durationMs / steps);
-    const startVol = bgmAudio.volume;
-    let step = 0;
-    fadeTimer = setInterval(() => {
-      if (!bgmAudio) {
-        clearInterval(fadeTimer); fadeTimer = null;
-        return;
-      }
-      step++;
-      const v = startVol * (1 - step / steps);
-      if (step >= steps || v <= 0) {
-        clearInterval(fadeTimer); fadeTimer = null;
-        bgmStop();
-        return;
-      }
-      bgmAudio.volume = Math.max(0, v);
-    }, stepMs);
+    const c = ensure();
+    if (!c || !bgmGain || !bgmSource) return;
+    if (bgmFadeStopTimer) { clearTimeout(bgmFadeStopTimer); bgmFadeStopTimer = null; }
+    const now = c.currentTime;
+    const endAt = now + durationMs / 1000;
+    const currentGain = bgmGain.gain.value;
+    try { bgmGain.gain.cancelScheduledValues(now); } catch (e) {}
+    bgmGain.gain.setValueAtTime(currentGain, now);
+    bgmGain.gain.linearRampToValueAtTime(0, endAt);
+    // Schedule hard stop slightly after ramp ends to free the source.
+    try { bgmSource.stop(endAt + 0.05); } catch (e) {}
+    const srcRef = bgmSource;
+    bgmFadeStopTimer = setTimeout(() => {
+      bgmFadeStopTimer = null;
+      // Only teardown if it's still the same source (no new startBGM intervened)
+      if (bgmSource === srcRef) teardownBgmSource();
+    }, durationMs + 80);
   };
   const titleBgmStart = () => startBGM(TITLE_BGM);
   const gameBgmStart = () => {
@@ -435,15 +433,19 @@ const Snd = (() => {
   };
   const getTrackList = () => GAME_BGM_TRACKS;
   const ctaBgmStart = () => startBGM(CTA_BGM);
-  const bgmCurrentTime = () => bgmAudio ? bgmAudio.currentTime : 0;
+  // AudioContext-derived playback position (seconds). Sample-accurate and
+  // monotonic — no chunky-update drift like HTMLAudio.currentTime.
+  const bgmCurrentTime = () => {
+    if (!ctx || !bgmSource || !bgmBufferDuration) return 0;
+    const elapsed = ctx.currentTime - bgmStartCtxTime;
+    if (elapsed < 0) return 0;
+    return elapsed % bgmBufferDuration;
+  };
   const retryBgm = () => {
-    if (bgmAudio && bgmAudio.paused) {
-      const p = bgmAudio.play();
-      if (p && p.catch) p.catch(() => {});
-    }
+    if (ctx && ctx.state === 'suspended') ctx.resume();
   };
 
-  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList };
+  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList };
 })();
 
 function updateSoundBtn() {
@@ -1138,9 +1140,6 @@ function startGame() {
   // warmup) is gone because updateIndicator/judgeTap both run in audio time.
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
-  // Reset smoothed audio clock: new Audio element means a fresh currentTime=0
-  // baseline, and any state carried over from title BGM is meaningless now.
-  audioClock.primed = false;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
   document.documentElement.style.setProperty('--beat-duration', TUNING.beatIntervalMs + 'ms');
   if (els.nowPlaying) {
@@ -1677,6 +1676,8 @@ function bind() {
       return;
     }
     firstGestureFired = true;
+    // Kick off all BGM decodes in parallel so GAME START / CTA switches are instant.
+    if (Snd.bgmPreload) Snd.bgmPreload();
     if (els.scenes.title.classList.contains('active')) Snd.titleBgmStart();
     else Snd.retryBgm();
   };
