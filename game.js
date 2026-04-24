@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v98';
+const GAME_VERSION = 'v99';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -248,6 +248,43 @@ const Snd = (() => {
     const c = ensure();
     if (c && c.state === 'suspended') c.resume();
   };
+  // iOS Safari unlock: play a 1-sample silent buffer SYNCHRONOUSLY inside the
+  // user gesture handler. Without this, subsequent source.start() calls made
+  // in async continuations (.then of decodeAudioData) silently fail on iPhone
+  // because the gesture context has already expired. Must be called from
+  // firstGesture or any user-gesture handler once per session.
+  let iosUnlocked = false;
+  const unlockAudio = () => {
+    if (iosUnlocked) return;
+    const c = ensure();
+    if (!c) return;
+    try {
+      if (c.state === 'suspended') c.resume();
+      const buf = c.createBuffer(1, 1, 22050);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.connect(c.destination);
+      src.start(0);
+      src.onended = () => { try { src.disconnect(); } catch (e) {} };
+      iosUnlocked = true;
+    } catch (e) {}
+  };
+  // ensurePlaying: if we intend BGM to be playing but source is null (iOS
+  // suspended, source ended unexpectedly, etc.), restart. Safe to call
+  // liberally — no-op if already playing.
+  let bgmIntendedSrc = null;
+  const ensurePlaying = () => {
+    if (!bgmIntendedSrc) return;
+    const c = ensure();
+    if (!c) return;
+    if (c.state === 'suspended') {
+      const p = c.resume();
+      if (p && p.then) p.then(() => { if (!bgmSource && bgmIntendedSrc) startBGM(bgmIntendedSrc); });
+      return;
+    }
+    if (!bgmSource) startBGM(bgmIntendedSrc);
+  };
+  const getCtxState = () => ctx ? ctx.state : 'none';
   const setMute = (m) => {
     muted = m;
     try { localStorage.setItem('kyomuusa_muted', m ? '1' : '0'); } catch (e) {}
@@ -257,6 +294,10 @@ const Snd = (() => {
       try { bgmGain.gain.cancelScheduledValues(now); } catch (e) {}
       bgmGain.gain.setValueAtTime(m ? 0 : BGM_VOLUME, now);
     }
+    // Unmuting: if BGM should be playing but isn't, kick it off. Handles the
+    // iPhone SE case where first gesture was the mute toggle itself and
+    // the firstGesture-triggered titleBgmStart hit the iOS unlock wall.
+    if (!m) ensurePlaying();
   };
   const toggle = () => { setMute(!muted); return muted; };
   const isMuted = () => muted;
@@ -359,7 +400,7 @@ const Snd = (() => {
     bgmBufferDuration = 0;
     bgmStartCtxTime = 0;
   };
-  const bgmStop = () => { teardownBgmSource(); };
+  const bgmStop = () => { bgmIntendedSrc = null; teardownBgmSource(); };
   // Internal: create source+gain, schedule play, record anchor time.
   const playBufferLoop = (c, src, buf) => {
     const gain = c.createGain();
@@ -381,6 +422,7 @@ const Snd = (() => {
     resume();
     const c = ensure();
     if (!c) return;
+    bgmIntendedSrc = src; // track intent so ensurePlaying can recover dropouts
     // Always teardown current source — AudioBufferSourceNode is one-shot, can't
     // be restarted or reused. With cached buffers, recreating is cheap.
     teardownBgmSource();
@@ -394,7 +436,8 @@ const Snd = (() => {
     const tokenSrc = src;
     loadBgmBuffer(src).then((buf) => {
       if (!buf) return;
-      if (bgmSource || bgmCurrentSrc) return; // something else took over
+      if (bgmIntendedSrc !== tokenSrc) return; // user wanted a different track
+      if (bgmSource || bgmCurrentSrc) return;  // something else took over
       playBufferLoop(c, tokenSrc, buf);
     }).catch(() => {});
   };
@@ -445,7 +488,7 @@ const Snd = (() => {
     if (ctx && ctx.state === 'suspended') ctx.resume();
   };
 
-  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList };
+  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, bgmPreload, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList, unlockAudio, ensurePlaying, getCtxState };
 })();
 
 function updateSoundBtn() {
@@ -914,6 +957,11 @@ function handleTap(ev) {
   if (ev && ev.cancelable) ev.preventDefault();
   if (ev && ev.type === 'touchstart') els.pushBtn._touched = true;
   if (ev && ev.type === 'mousedown' && els.pushBtn._touched) { els.pushBtn._touched = false; return; }
+
+  // iOS Safari opportunistic: if context was suspended mid-game (silent switch,
+  // memory pressure, brief interrupt) or source dropped, re-arm BGM. No-op if
+  // already playing, so safe to call every tap.
+  if (typeof Snd !== 'undefined' && Snd.ensurePlaying) Snd.ensurePlaying();
 
   // Ignore overshoot taps after the 30-mash finisher so the gauge can't rebound to 99.
   // mashCountチェックは sticky guard: finishMashModeでmashMode=falseになった直後の隙間にも効く。
@@ -1589,7 +1637,10 @@ function buildSongPicker() {
 function openSongPicker() {
   if (!els.songPicker) return;
   buildSongPicker();
-  if (els.songPickerVersion) els.songPickerVersion.textContent = GAME_VERSION;
+  if (els.songPickerVersion) {
+    const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';
+    els.songPickerVersion.textContent = GAME_VERSION + ' / audio: ' + ctxState;
+  }
   els.songPicker.classList.add('show');
   els.songPicker.setAttribute('aria-hidden', 'false');
 }
@@ -1676,6 +1727,11 @@ function bind() {
       return;
     }
     firstGestureFired = true;
+    // iOS Safari: play a silent buffer synchronously inside this gesture handler
+    // to fully unlock AudioContext. Without this, source.start() called later
+    // from decodeAudioData.then() is silent on iPhone even though the context
+    // is technically 'running' — the gesture context has expired.
+    if (Snd.unlockAudio) Snd.unlockAudio();
     // Kick off all BGM decodes in parallel so GAME START / CTA switches are instant.
     if (Snd.bgmPreload) Snd.bgmPreload();
     if (els.scenes.title.classList.contains('active')) Snd.titleBgmStart();
@@ -1683,6 +1739,13 @@ function bind() {
   };
   document.addEventListener('pointerdown', firstGesture, { capture: true });
   document.addEventListener('keydown', firstGesture, { capture: true });
+
+  // iOS: audio context often suspends when page goes to background (tab switch,
+  // phone call, silent switch). When visibility returns, resume + restart BGM
+  // so users don't come back to a silent game.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Snd.ensurePlaying) Snd.ensurePlaying();
+  });
 
   // Debug: 5連タップで曲選択
   on(els.scenes.title, 'pointerdown', handleTitleTap);
