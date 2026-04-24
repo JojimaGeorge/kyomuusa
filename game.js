@@ -2,6 +2,8 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
+const GAME_VERSION = 'v97';
+
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
   "beatSpeedupAt100": 0.5,
@@ -132,6 +134,7 @@ const els = {
   shareThreads: $('#share-threads'),
   songPicker: $('#song-picker'),
   songPickerList: $('#song-picker-list'),
+  songPickerVersion: $('#song-picker-version'),
   songPickerClose: $('#song-picker-close'),
   shareCopy: $('#share-copy'),
   shareToast: $('#cta-share-toast'),
@@ -155,53 +158,42 @@ let _pulseParity = false;
 let _badgeParity = false;
 let _mashPopParity = false;
 
-/* ---------- Smoothed audio clock ----------
-   HTMLAudioElement.currentTime on Galaxy/iOS Chrome updates in coarse chunks
-   (50-200ms) — between chunks it returns the same value, then jumps. Using it
-   raw for ring phase freezes the ring during stalls and teleports on jumps,
-   making mobile feel persistently off-beat.
+/* ---------- Audio clock (wall-clock anchor) ----------
+   v=95/96 で audio.currentTime を毎フレーム読んで smooth/snap する方式を試したが、
+   mobile で drift/hitch が残った。v=97: アプローチ変更。
 
-   Design: forward-monotonic wall-clock extrapolation from a baseline audio sample.
-   Rebase the baseline only when rawMs catches up to or surpasses extrapolation
-   (no backward snaps — those were causing "after-tap drift" where a chunk update
-   with a small audio advance would pull smoothedMs backward, making the ring
-   visibly retreat). Safety: if extrapolation runs 500ms ahead of rawMs, force
-   rebase — handles real stalls (buffering/pause) where wall-clock would overshoot. */
+   Design: `beginPlay` 時に audio.currentTime を1回だけ読んで anchor に記録し、
+   以降はひたすら wall-clock で進める。ring も判定も完全に単調増加で滑らか。
+   loop wrap (audio が戻った) だけは rawMs をチェックして再 anchor する。
+
+   前提: audio 再生レート ≒ wall-clock レート（通常成立）。ズレが体感で出るなら
+   TUNING.beatLatencyMs を調整して吸収する。 */
 const audioClock = {
-  baseAudioMs: 0,
-  baseWallMs: 0,
+  anchorAudioMs: 0,
+  anchorWallMs: 0,
   primed: false,
 };
+function primeAudioClock() {
+  audioClock.anchorAudioMs = Snd.bgmCurrentTime() * 1000;
+  audioClock.anchorWallMs = performance.now();
+  audioClock.primed = true;
+}
 function getAudioClockMs() {
-  const rawMs = Snd.bgmCurrentTime() * 1000;
   const wallMs = performance.now();
   if (!audioClock.primed) {
-    audioClock.baseAudioMs = rawMs;
-    audioClock.baseWallMs = wallMs;
-    audioClock.primed = true;
+    primeAudioClock();
+    return audioClock.anchorAudioMs;
+  }
+  // Check for loop wrap: if raw rewound > 1s, re-anchor to new audio position
+  const rawMs = Snd.bgmCurrentTime() * 1000;
+  const expected = audioClock.anchorAudioMs + (wallMs - audioClock.anchorWallMs);
+  if (rawMs < expected - 1000) {
+    audioClock.anchorAudioMs = rawMs;
+    audioClock.anchorWallMs = wallMs;
     return rawMs;
   }
-  // Loop wrap → hard re-sync
-  if (rawMs < audioClock.baseAudioMs - 1000) {
-    audioClock.baseAudioMs = rawMs;
-    audioClock.baseWallMs = wallMs;
-    return rawMs;
-  }
-  const extrapolated = audioClock.baseAudioMs + Math.max(0, wallMs - audioClock.baseWallMs);
-  // Raw caught up / overtook extrapolation → rebase up (no jump: rawMs == extrapolated at boundary)
-  if (rawMs >= extrapolated) {
-    audioClock.baseAudioMs = rawMs;
-    audioClock.baseWallMs = wallMs;
-    return rawMs;
-  }
-  // Runaway safety: audio stalled for real (buffering, paused) — snap back to raw
-  if (extrapolated - rawMs > 500) {
-    audioClock.baseAudioMs = rawMs;
-    audioClock.baseWallMs = wallMs;
-    return rawMs;
-  }
-  // Normal stall between chunks → trust wall-clock extrapolation, keep ring moving
-  return extrapolated;
+  // Pure wall-clock extrapolation
+  return audioClock.anchorAudioMs + (wallMs - audioClock.anchorWallMs);
 }
 
 /* ============================================================
@@ -1598,6 +1590,7 @@ function buildSongPicker() {
 function openSongPicker() {
   if (!els.songPicker) return;
   buildSongPicker();
+  if (els.songPickerVersion) els.songPickerVersion.textContent = GAME_VERSION;
   els.songPicker.classList.add('show');
   els.songPicker.setAttribute('aria-hidden', 'false');
 }

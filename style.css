@@ -341,6 +341,13 @@ body {
   color: #1a0a2e;
 }
 .song-picker-btn.selected .sp-tag { opacity: 0.8; }
+.song-picker-version {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 10px;
+  text-align: center;
+}
 .song-picker-close {
   font-family: inherit;
   font-size: 11px;
