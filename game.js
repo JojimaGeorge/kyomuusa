@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v100';
+const GAME_VERSION = 'v101';
 
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
@@ -188,6 +188,7 @@ const Snd = (() => {
   let bgmBufferDuration = 0;        // buffer.duration (for loop modulo)
   let bgmCurrentSrc = null;
   let bgmFadeStopTimer = null;      // setTimeout handle for post-fade stop
+  let bgmLastRestartAt = 0;         // rate-limit onended restart cascades
   let muted = false;
   // Game BGM tracks with beat metadata.
   // BPM uses librosa-measured real values. DO NOT boost BPM to create "anticipatory" feel —
@@ -425,6 +426,9 @@ const Snd = (() => {
   const teardownBgmSource = () => {
     if (bgmFadeStopTimer) { clearTimeout(bgmFadeStopTimer); bgmFadeStopTimer = null; }
     if (bgmSource) {
+      // Mark before nulling: iOS Safari sometimes queues onended on the task
+      // loop even after onended=null, so the handler itself double-checks this flag.
+      try { bgmSource._intentionallyStopped = true; } catch (e) {}
       try { bgmSource.onended = null; } catch (e) {}
       try { bgmSource.stop(0); } catch (e) {}
       try { bgmSource.disconnect(); } catch (e) {}
@@ -451,15 +455,24 @@ const Snd = (() => {
     const startAt = c.currentTime;
     source.start(startAt);
     // Self-healing: if iOS silently ends our source (hardware interrupt,
-    // memory reclaim, suspend→resume edge case), restart it. teardownBgmSource
-    // nulls onended before stop(), so intentional stops don't trigger this.
+    // memory reclaim, suspend→resume edge case), restart it. Multiple guards
+    // to prevent restart cascades on iPhone SE where iOS may rapid-fire onended:
+    // - _intentionallyStopped: set by teardownBgmSource before stop()
+    // - ctx.state === 'suspended': restarting would spawn another zombie
+    // - rate-limit: ignore if we already restarted within 500ms
     source.onended = () => {
-      if (bgmIntendedSrc === src && bgmSource === source) {
-        bgmSource = null;
-        setTimeout(() => {
-          if (bgmIntendedSrc === src && !bgmSource) startBGM(src);
-        }, 30);
-      }
+      if (source._intentionallyStopped) return;
+      if (bgmIntendedSrc !== src || bgmSource !== source) return;
+      bgmSource = null;
+      if (!ctx || ctx.state !== 'running') return; // wait for ensurePlaying on next gesture
+      const now = performance.now();
+      if (now - (bgmLastRestartAt || 0) < 500) return;
+      bgmLastRestartAt = now;
+      setTimeout(() => {
+        if (bgmIntendedSrc === src && !bgmSource && ctx && ctx.state === 'running') {
+          startBGM(src);
+        }
+      }, 30);
     };
     bgmSource = source;
     bgmGain = gain;
@@ -1866,7 +1879,10 @@ function setupTweaks() {
 function init() {
   // preload all stage GIFs
   Object.values(STAGE_GIFS).forEach(g => { new Image().src = g.src; });
-  Snd.seLoad();
+  // DON'T call Snd.seLoad() or Snd.titleBgmStart() here: both would create
+  // the AudioContext pre-gesture, which iOS Safari on older iPhone SE silently
+  // treats as permanently suspended even after resume(). firstGesture handles
+  // unlock + preload + BGM start inside a real user gesture.
   buildTicks();
   applyTweaks();
   bind();
@@ -1875,6 +1891,5 @@ function init() {
   animateTitle();
   typeTagline();
   showScene('title');
-  Snd.titleBgmStart();
 }
 init();
