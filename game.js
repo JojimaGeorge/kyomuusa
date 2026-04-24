@@ -18,7 +18,8 @@ const TUNING = /*EDITMODE-BEGIN*/{
   "hologramStrength": 0,
   "effectIntensity": 10,
   "shakeEnabled": true,
-  "flashEnabled": true
+  "flashEnabled": true,
+  "particlesEnabled": false
 }/*EDITMODE-END*/;
 
 // Expose for devtools tuning (e.g., window.TUNING.beatLatencyMs = 180)
@@ -674,6 +675,7 @@ GOOD_ICONS.forEach(src => {
 });
 
 function spawnParticles(n, color) {
+  if (!TUNING.particlesEnabled) return;
   const btn   = _rectBtn       || els.pushBtn.getBoundingClientRect();
   const stage = _rectParticles || els.particles.getBoundingClientRect();
   const cx = btn.left + btn.width/2 - stage.left;
