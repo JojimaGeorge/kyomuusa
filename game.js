@@ -155,6 +155,59 @@ let _pulseParity = false;
 let _badgeParity = false;
 let _mashPopParity = false;
 
+/* ---------- Smoothed audio clock ----------
+   HTMLAudioElement.currentTime on Galaxy/iOS Chrome updates in coarse chunks
+   (50-200ms) — between chunks it returns the same value, then jumps. Using it
+   raw for ring phase freezes the ring during stalls and teleports on jumps,
+   making mobile feel persistently off-beat.
+
+   Fix: extrapolate currentTime with wall-clock between audio samples, snap to
+   audio when it advances, hard-reset on loop wrap. Ring/judge then move smoothly
+   and stay locked to audio. */
+const audioClock = {
+  lastAudioMs: 0,
+  lastWallMs: 0,
+  smoothedMs: 0,
+  primed: false,
+};
+function resetAudioClock() {
+  const raw = (typeof Snd !== 'undefined' && Snd.bgmCurrentTime) ? Snd.bgmCurrentTime() * 1000 : 0;
+  audioClock.lastAudioMs = raw;
+  audioClock.lastWallMs = performance.now();
+  audioClock.smoothedMs = raw;
+  audioClock.primed = true;
+}
+function getAudioClockMs() {
+  const rawMs = Snd.bgmCurrentTime() * 1000;
+  const wallMs = performance.now();
+  if (!audioClock.primed) {
+    audioClock.lastAudioMs = rawMs;
+    audioClock.lastWallMs = wallMs;
+    audioClock.smoothedMs = rawMs;
+    audioClock.primed = true;
+    return rawMs;
+  }
+  // Loop wrap or large backward jump → hard re-sync
+  if (rawMs < audioClock.lastAudioMs - 1000) {
+    audioClock.lastAudioMs = rawMs;
+    audioClock.lastWallMs = wallMs;
+    audioClock.smoothedMs = rawMs;
+    return rawMs;
+  }
+  // Audio advanced (≥ 2ms) → re-sync
+  if (rawMs > audioClock.lastAudioMs + 2) {
+    audioClock.lastAudioMs = rawMs;
+    audioClock.lastWallMs = wallMs;
+    audioClock.smoothedMs = rawMs;
+    return rawMs;
+  }
+  // Audio stalled → extrapolate from wall-clock (cap at 150ms to avoid runaway)
+  const wallDelta = wallMs - audioClock.lastWallMs;
+  const extrap = Math.min(Math.max(0, wallDelta), 150);
+  audioClock.smoothedMs = audioClock.lastAudioMs + extrap;
+  return audioClock.smoothedMs;
+}
+
 /* ============================================================
    Sound Manager — Web Audio (procedural SE + BGM)
    ============================================================ */
@@ -611,7 +664,7 @@ function scheduleNextBeat(now) {
   if (TUNING.useAudioTimeSync && meta) {
     // EVERY-FRAME audio-derived schedule. Idempotent: same audioMs → same nextBeatN.
     const latency = TUNING.beatLatencyMs || 0;
-    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const audioMs = getAudioClockMs();
     if (state.beatIndex >= 0) {
       const expectedAudioMs = meta.offsetMs + state.beatIndex * interval;
       if (audioMs < expectedAudioMs - interval * 3) {
@@ -667,7 +720,7 @@ function updateIndicator(now) {
     // Audio-time path: ring phase derived from audio.currentTime so visual stays
     // perfectly synced to the music (no wall-clock drift).
     const latency = TUNING.beatLatencyMs || 0;
-    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const audioMs = getAudioClockMs();
     const heardMs = audioMs - latency;
     const elapsed = heardMs - meta.offsetMs;
     if (elapsed < -interval) {
@@ -726,10 +779,10 @@ function judgeTap(now) {
 
   if (TUNING.useAudioTimeSync && meta) {
     // Audio-time path: compare tap moment to beat moments in audio time directly.
-    // Eliminates wall-clock drift inside a beat cycle (the cause of session-to-session
-    // tempo feel variance — the ring/judge could be 5-30ms off audio between schedules).
+    // Uses smoothed clock so a momentary audio.currentTime stall on mobile doesn't
+    // give the same "elapsed" value for multiple taps in a row.
     const latency = TUNING.beatLatencyMs || 0;
-    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const audioMs = getAudioClockMs();
     const heardMs = audioMs - latency;
     const nearestN = Math.round((heardMs - meta.offsetMs) / interval);
     let bestDt = Infinity, bestIdx = null;
@@ -1097,6 +1150,9 @@ function startGame() {
   // warmup) is gone because updateIndicator/judgeTap both run in audio time.
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
+  // Reset smoothed audio clock: new Audio element means a fresh currentTime=0
+  // baseline, and any state carried over from title BGM is meaningless now.
+  audioClock.primed = false;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
   document.documentElement.style.setProperty('--beat-duration', TUNING.beatIntervalMs + 'ms');
   if (els.nowPlaying) {
