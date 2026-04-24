@@ -1074,14 +1074,11 @@ function startGame() {
   els.scenes.game.classList.remove('finishing');
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
-  runCountdown(beginPlay);
-}
 
-function beginPlay() {
-  // BGM starts here (at GO!!) not during countdown. The Audio element is reused across
-  // sessions (see Snd.startBGM), so same-src restart is reliable now even though we
-  // start cold here.
-  updateRectCache();
+  // Pre-start BGM so the user hears the intro and feels the tempo before the
+  // 3-2-1-GO! count lands. Safe now thanks to useAudioTimeSync: the Galaxy
+  // v=88 failure mode (wall-clock cycleDuration inflating during cold-start
+  // warmup) is gone because updateIndicator/judgeTap both run in audio time.
   const track = Snd.gameBgmStart();
   state.currentBgmMeta = track;
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
@@ -1098,6 +1095,14 @@ function beginPlay() {
       titleSpan.appendChild(s);
     });
   }
+
+  runCountdown(beginPlay);
+}
+
+function beginPlay() {
+  // BGM already playing + now-playing set up in startGame. Audio-time sync handles
+  // drift-free judgment/visuals, so beginPlay just flips running=true.
+  updateRectCache();
   state.startAt = performance.now();
   state.beatIndex = -1;
   state.running = true;
@@ -1107,35 +1112,93 @@ function beginPlay() {
   state.rafId = requestAnimationFrame(loop);
 }
 
+// 2-beat-per-number 3-2-1-GO! countdown locked to audio beats. BGM is already
+// playing when this runs (see startGame), so we can poll audio.currentTime and
+// land each number on an actual beat — user hears "music beat → 3 → music beat
+// → 2 → music beat → 1 → music beat → GO!" and taps in rhythm from the first
+// tap. Falls back to wall-clock if audio fails to advance within 2s.
 function runCountdown(onDone) {
   const overlay = els.countdownOverlay;
   const numEl = els.countdownNum;
   if (!overlay || !numEl) { onDone(); return; }
   overlay.classList.add('show');
-  // Total 1600ms: short enough that audio hasn't had time to drift on Galaxy Chrome.
-  // BGM starts in beginPlay (after this countdown) at audio.currentTime=0.
-  const steps = [
-    { text: 'READY?', dur: 900, go: false },
-    { text: 'GO!!',   dur: 700, go: true  },
-  ];
-  let i = 0;
-  const tick = () => {
-    if (i >= steps.length) {
-      overlay.classList.remove('show');
-      setTimeout(onDone, 140);
-      return;
-    }
-    const s = steps[i];
+
+  const meta = state.currentBgmMeta;
+  const interval = TUNING.beatIntervalMs;
+  const latency = TUNING.beatLatencyMs || 0;
+  const BEATS_PER_NUM = 2;
+
+  const showStep = (text, isGo) => {
     numEl.classList.remove('pop', 'go');
     void numEl.offsetWidth;
-    numEl.textContent = s.text;
-    if (s.go) numEl.classList.add('go');
+    numEl.textContent = text;
+    if (isGo) numEl.classList.add('go');
     numEl.classList.add('pop');
-    Snd.playSE(s.go ? 'se2' : 'se1');
-    i++;
-    setTimeout(tick, s.dur);
+    Snd.playSE(isGo ? 'se2' : 'se1');
   };
-  tick();
+  const finish = () => {
+    overlay.classList.remove('show');
+    onDone();
+  };
+
+  const fallbackWallCount = () => {
+    const dur = (interval || 460) * BEATS_PER_NUM;
+    const steps = [
+      { text: '3',   dur, go: false },
+      { text: '2',   dur, go: false },
+      { text: '1',   dur, go: false },
+      { text: 'GO!', dur: 500, go: true },
+    ];
+    let i = 0;
+    const tick = () => {
+      if (i >= steps.length) { setTimeout(finish, 200); return; }
+      const s = steps[i];
+      showStep(s.text, !!s.go);
+      i++;
+      setTimeout(tick, s.dur);
+    };
+    tick();
+  };
+
+  if (!meta || !interval) { fallbackWallCount(); return; }
+
+  // Wait until audio is confirmed playing + past first downbeat (1+ beat of intro)
+  const pollStart = performance.now();
+  const waitReady = () => {
+    const elapsed = performance.now() - pollStart;
+    const audioMs = Snd.bgmCurrentTime() * 1000;
+    const past1stBeat = audioMs >= meta.offsetMs + interval * 0.5;
+    if (!past1stBeat) {
+      if (elapsed > 2000) { fallbackWallCount(); return; }
+      requestAnimationFrame(waitReady);
+      return;
+    }
+    // "3" lands on a beat at least 400ms ahead AND at least beat #3 from song start
+    // (leaves room for 1-2 beats of pure intro before count begins).
+    const minStartMs = Math.max(audioMs + 400, meta.offsetMs + 3 * interval);
+    const threeBeatN = Math.ceil((minStartMs - meta.offsetMs) / interval);
+    const beats = [
+      { audioMs: meta.offsetMs + (threeBeatN + 0 * BEATS_PER_NUM) * interval, text: '3',   go: false },
+      { audioMs: meta.offsetMs + (threeBeatN + 1 * BEATS_PER_NUM) * interval, text: '2',   go: false },
+      { audioMs: meta.offsetMs + (threeBeatN + 2 * BEATS_PER_NUM) * interval, text: '1',   go: false },
+      { audioMs: meta.offsetMs + (threeBeatN + 3 * BEATS_PER_NUM) * interval, text: 'GO!', go: true  },
+    ];
+    let i = 0;
+    const tick = () => {
+      if (i >= beats.length) { setTimeout(finish, 200); return; }
+      const cur = Snd.bgmCurrentTime() * 1000;
+      const b = beats[i];
+      // Trigger when user's perceived audio position (= currentTime - latency)
+      // reaches the beat — match scheduleNextBeat's latency convention.
+      if (cur >= b.audioMs + latency) {
+        showStep(b.text, b.go);
+        i++;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  };
+  waitReady();
 }
 
 let cleared = false;
@@ -1479,7 +1542,9 @@ function handleTitleTap(ev) {
 
 /* ---------- Wire up ---------- */
 function bind() {
-  const startFn = (e) => { e && e.preventDefault && e.preventDefault(); Snd.resume(); Snd.playSE('se3', 0.21); Snd.fadeOutBGM(1000); startGame(); };
+  // Title BGM is swapped to game BGM inside startGame (Snd reuses a single Audio
+  // element now, so the swap is fast and reliable). SE3 masks the brief cut.
+  const startFn = (e) => { e && e.preventDefault && e.preventDefault(); Snd.resume(); Snd.playSE('se3', 0.21); startGame(); };
   const on = (el, ev, fn, opts) => { if (el) el.addEventListener(ev, fn, opts); };
   on(els.startBtn, 'click', startFn);
   on(els.startBtn, 'touchstart', startFn, { passive: false });
