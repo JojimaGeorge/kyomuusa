@@ -536,11 +536,11 @@ body {
 .rhythm-wrap {
   position: relative;
   display: grid; place-items: center;
-  width: 230px; height: 230px;
+  width: 250px; height: 250px;
 }
 .rhythm-ring {
   position: absolute; left: 50%; top: 50%;
-  width: 222px; height: 222px;
+  width: 242px; height: 242px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 3px dashed rgba(255,255,255,0.7);
@@ -551,7 +551,7 @@ body {
 .rhythm-indicator {
   position: absolute;
   left: 50%; top: 50%;
-  width: 222px; height: 222px;
+  width: 242px; height: 242px;
   transform: translate(-50%, -50%) scale(2);
   border-radius: 50%;
   border: 5px solid #FFE600;
@@ -563,7 +563,7 @@ body {
 /* Beat tick marks on the outer ring */
 .rhythm-ticks {
   position: absolute; left: 50%; top: 50%;
-  width: 230px; height: 230px;
+  width: 250px; height: 250px;
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -572,14 +572,14 @@ body {
   left: 50%; top: 4px;
   width: 4px; height: 12px;
   background: rgba(255,255,255,0.65);
-  transform-origin: 50% 111px;
+  transform-origin: 50% 121px;
   border-radius: 2px;
 }
 
 /* Push button — FF4DF6 → 8D8FFF gradient */
 .push-btn {
   position: relative;
-  width: 180px; height: 180px;
+  width: 156px; height: 156px;
   border-radius: 50%;
   border: none;
   background: radial-gradient(circle at 35% 30%, #fff 0%, #FFB6FA 15%, #FF4DF6 55%, #B467FF 80%, #8D8FFF 100%);
@@ -595,7 +595,7 @@ body {
     0 20px 36px rgba(255,77,246,0.5);
   font-family: 'Bagel Fat One', sans-serif;
   color: #fff;
-  font-size: 36px;
+  font-size: 32px;
   letter-spacing: 2px;
   text-shadow: 0 3px 0 var(--deep), 0 -1px 0 #FFB6FA;
   -webkit-text-stroke: 2px var(--deep);

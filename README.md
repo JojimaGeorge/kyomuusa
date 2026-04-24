@@ -94,9 +94,9 @@ hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus − decayPenalty
 
 ```js
 // game.js 内 GAME_BGM_TRACKS
-{ src: './assets/musicA.mp3', bpm: 130.97, offsetMs: 487, title: 'Milkey CasWay' },
+{ src: './assets/musicA.mp3', bpm: 130.97, offsetMs: 487, title: 'Milky CasWay' },
 { src: './assets/musicB.mp3', bpm: 132.06, offsetMs: 558, title: 'Parallel CasNight' },
-{ src: './assets/musicC.mp3', bpm: 131.50, offsetMs: 892, title: 'Signal CasLiver' },
+{ src: './assets/musicC.mp3', bpm: 131.50, offsetMs: 892, title: 'Signals of CasLiver' },
 ```
 
 BPMは各曲の実測BPMに対して+1.12高く設定してあり、これによりグリッドが音楽より先行し、30拍までに約+118msの「前方ドリフト」が蓄積する。これはプレイヤーの「音の直前に反応する」先読みタップ感覚に合わせた意図的なずらし。B/Cはさらに最初の検出拍から-30msシフトし全体を手前に寄せている。

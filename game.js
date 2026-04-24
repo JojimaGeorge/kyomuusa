@@ -5,9 +5,9 @@
 const TUNING = /*EDITMODE-BEGIN*/{
   "beatIntervalMs": 560,
   "beatSpeedupAt100": 0.5,
-  "perfectWindowMs": 75,
-  "greatWindowMs": 140,
-  "goodWindowMs": 220,
+  "perfectWindowMs": 100,
+  "greatWindowMs": 190,
+  "goodWindowMs": 290,
   "gainPerfect": 3.85,
   "gainGreat": 2.31,
   "gainGood": 1.31,
@@ -166,9 +166,9 @@ const Snd = (() => {
   // offsetMs is -30ms from the first detected beat to nudge the whole grid
   // a touch earlier in wall-clock time ("手前で反応" request, 2026-04-22).
   const GAME_BGM_TRACKS = [
-    { src: './assets/musicA.mp3', bpm: 129.85, offsetMs: 487, title: 'Milkey CasWay' },
-    { src: './assets/musicB.mp3', bpm: 130.47, offsetMs: 468, title: 'Parallel CasNight' },
-    { src: './assets/musicC.mp3', bpm: 130.94, offsetMs: 862, title: 'Signal CasLiver' },
+    { src: './assets/musicA.mp3', bpm: 130.8, offsetMs: 487, title: 'Milky CasWay' },
+    { src: './assets/musicB.mp3', bpm: 131, offsetMs: 468, title: 'Parallel CasNight' },
+    { src: './assets/musicC.mp3', bpm: 130.8, offsetMs: 862, title: 'Signals of CasLiver' },
   ];
   const TITLE_BGM = './assets/music_title.mp3';
   const CTA_BGM = './assets/music_end.mp3';
@@ -580,8 +580,8 @@ function scheduleNextBeat(now) {
   }
 }
 function updateIndicator(now) {
-  // Indicator ring shrinks from 2.2x → 1.0x (matches rhythm-ring size) as the beat approaches.
-  // It stays visible at ring-size for ~150ms after the beat ("hit window" pulse), then resets for the next beat.
+  // Indicator ring shrinks from 2.2x → 0.644x (matches push-btn 156 / rhythm-ring 242) as the beat approaches.
+  // It stays visible at button-size for ~180ms after the beat ("hit window" pulse), then resets for the next beat.
   const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
   const dt = state.nextBeatAt - now; // ms until next beat (positive before, negative after)
 
@@ -590,20 +590,22 @@ function updateIndicator(now) {
   // After tap jank: scheduleNextBeat fires late → audioDelay shrinks → ring jumps mid-shrink.
   // With cycleDuration: ring always spans exactly from schedule time → nextBeatAt, no freezes/jumps.
   const cycleDuration = Math.max(50, state.beatCycleDuration || interval);
+  const startScale = 2.2;
+  const targetScale = 0.644; // push-btn(156) / rhythm-ring(242) — converge onto the button itself
   let scale, opacity, glow;
   if (dt >= 0) {
     // approaching beat
     const t = Math.min(1, Math.max(0, 1 - dt / cycleDuration)); // 0 at schedule, 1 at beat
-    scale = 2.2 - t * 1.2;  // 2.2 → 1.0
+    scale = startScale - t * (startScale - targetScale); // 2.2 → 0.644
     opacity = 0.35 + t * 0.65;
   } else {
-    // just after beat: brief "hit" flash at scale 1, then fade
+    // just after beat: brief "hit" flash at button-size, then fade
     const tAfter = -dt;
     if (tAfter < 180) {
-      scale = 1.0 + (tAfter / 180) * 0.15; // slight bloom 1.0 → 1.15
+      scale = targetScale + (tAfter / 180) * 0.10; // slight bloom 0.644 → 0.744
       opacity = 1 - (tAfter / 180) * 0.7;
     } else {
-      scale = 2.2;
+      scale = startScale;
       opacity = 0.0;
     }
   }
@@ -1314,6 +1316,16 @@ function bind() {
   on(els.pushBtn, 'mousedown', handleTap);
   on(els.pushBtn, 'contextmenu', (e) => e.preventDefault());
   document.addEventListener('keydown', (e) => { if (e.code==='Space' && state.running) { e.preventDefault(); handleTap(e); } });
+
+  // Whole-screen tap → PUSH (skip interactive UI like sound toggle / push-btn itself).
+  // push-btn is excluded so its own handler stays the source of truth (avoids double-fire).
+  const sceneTap = (ev) => {
+    if (!state.running) return;
+    if (ev.target && ev.target.closest && ev.target.closest('.sound-toggle, .push-btn, .now-playing, .gauge-container')) return;
+    handleTap(ev);
+  };
+  on(els.scenes.game, 'touchstart', sceneTap, { passive: false });
+  on(els.scenes.game, 'mousedown', sceneTap);
 
   on(els.yesBtn, 'click', onYes);
   on(els.noBtn, 'click', onNo);
