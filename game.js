@@ -834,7 +834,7 @@ function handleTap(ev) {
   _pulseParity = !_pulseParity;
   els.gaugePulse.className = 'gauge-pulse ' + (_pulseParity ? 'pulse-a' : 'pulse-b');
 
-  if (window.gsap) gsap.fromTo(els.pushBtn, { scale: 0.92 }, { scale: 1, duration: 0.3, ease: 'elastic.out(1.2,0.4)' });
+  if (window.gsap) gsap.fromTo(els.pushBtn, { scale: 0.92 }, { scale: 1, duration: 0.3, ease: 'elastic.out(1.2,0.4)', overwrite: 'auto' });
 
   renderGauge();
   // Gauge hitting 99 arms the mash phase; a short delay lets the final tap's
