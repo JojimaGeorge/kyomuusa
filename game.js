@@ -62,6 +62,7 @@ const state = {
   gifStartAt: 0,
   gifAdvanceTimer: null,
   gifPendingAdvance: false,
+  activeChar: 'A',
   mashMode: false,
   mashCount: 0,
   mashTarget: 30,
@@ -90,6 +91,7 @@ const els = {
   timer: $('#timer-label'),
   tapCount: $('#tap-count'),
   char: $('#character'),
+  charB: $('#character-b'),
   comboLayer: $('#combo-layer'),
   particles: $('#particles'),
   flash: $('#flash'),
@@ -477,20 +479,33 @@ function renderGauge() {
   }
 }
 
-/* ---------- Rabbit GIF stage manager ---------- */
+/* ---------- Rabbit GIF stage manager ----------
+   Double-buffered: load the new GIF into the inactive <img>, await decode(),
+   reveal it on top of the current one, then hide the old one one frame later.
+   This keeps a frame visible at all times — no blank gap during decode. */
 async function setGifStage(key) {
   const gif = STAGE_GIFS[key];
   if (!gif) return;
   if (state.gifAdvanceTimer) { clearTimeout(state.gifAdvanceTimer); state.gifAdvanceTimer = null; }
   state.gifStage = key;
   state.gifPendingAdvance = false;
-  els.char.style.visibility = 'hidden';
-  els.char.src = gif.src;
-  try { await els.char.decode(); } catch (e) { /* ignore — fall through */ }
+  const curSlot = state.activeChar;
+  const nextSlot = curSlot === 'A' ? 'B' : 'A';
+  const curEl = curSlot === 'A' ? els.char : els.charB;
+  const nextEl = nextSlot === 'A' ? els.char : els.charB;
+  nextEl.src = gif.src;
+  try { await nextEl.decode(); } catch (e) { /* ignore — fall through */ }
   if (state.gifStage !== key) return;
-  els.char.style.visibility = 'visible';
-  els.char.className = 'char-img char-gif';
+  nextEl.className = 'char-img char-gif';
+  nextEl.style.visibility = 'visible';
+  state.activeChar = nextSlot;
   state.gifStartAt = performance.now();
+  // Hide the old one after the new one has been composited (2 rAFs guarantees paint).
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (state.activeChar !== nextSlot) return;
+    curEl.style.visibility = 'hidden';
+    curEl.className = 'char-img';
+  }));
   if (!gif.loop && gif.next) {
     state.gifAdvanceTimer = setTimeout(() => {
       state.gifAdvanceTimer = null;
