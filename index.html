@@ -66,7 +66,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="./style.css?v=76"/>
+<link rel="stylesheet" href="./style.css?v=77"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -120,6 +120,15 @@
       <div class="title-tagline"><span class="typed" id="tagline-typed"></span><span class="caret tagline-caret"></span></div>
       <button class="start-btn" id="start-btn">GAME START</button>
       <div class="powered-by">Powered by CasLive</div>
+
+      <!-- ===== DEBUG: Song picker (5タップで起動) ===== -->
+      <div class="song-picker" id="song-picker" aria-hidden="true">
+        <div class="song-picker-card">
+          <div class="song-picker-title">SELECT BGM</div>
+          <div class="song-picker-list" id="song-picker-list"></div>
+          <button class="song-picker-close" id="song-picker-close" aria-label="閉じる">CLOSE</button>
+        </div>
+      </div>
     </section>
 
     <!-- ============ GAME ============ -->
@@ -294,6 +303,6 @@
 
 <div class="tweaks" id="tweaks-panel"></div>
 
-<script src="./game.js?v=85"></script>
+<script src="./game.js?v=86"></script>
 </body>
 </html>

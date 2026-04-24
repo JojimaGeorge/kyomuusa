@@ -267,6 +267,91 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* ===== DEBUG: Song picker (5連タップで表示) ===== */
+.song-picker {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 4, 28, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace;
+}
+.song-picker.show { display: flex; animation: songPickerFade 0.18s ease-out; }
+@keyframes songPickerFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.song-picker-card {
+  width: 78%;
+  max-width: 280px;
+  padding: 18px 16px 14px;
+  background: #1a0a2e;
+  border: 3px solid #FFE600;
+  box-shadow: 0 0 0 3px #1a0a2e, 0 0 0 6px #FF3EA5, 0 12px 32px rgba(0,0,0,0.5);
+  color: #fff;
+  text-align: center;
+}
+.song-picker-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #FFE600;
+  margin-bottom: 14px;
+  text-shadow: 0 2px 0 #1a0a2e;
+}
+.song-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.song-picker-btn {
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  color: #fff;
+  background: #2A0B4A;
+  border: 2px solid #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.song-picker-btn .sp-label { white-space: nowrap; }
+.song-picker-btn .sp-tag {
+  font-size: 9px;
+  letter-spacing: 1px;
+  opacity: 0.6;
+}
+.song-picker-btn:hover,
+.song-picker-btn:active {
+  background: #FFE600;
+  color: #1a0a2e;
+}
+.song-picker-btn.selected {
+  background: #FFE600;
+  color: #1a0a2e;
+}
+.song-picker-btn.selected .sp-tag { opacity: 0.8; }
+.song-picker-close {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #fff;
+  background: transparent;
+  border: 2px solid rgba(255,255,255,0.5);
+  padding: 8px 18px;
+  cursor: pointer;
+}
+.song-picker-close:hover { border-color: #fff; }
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.75; }

@@ -127,6 +127,9 @@ const els = {
   shareX: $('#share-x'),
   shareLine: $('#share-line'),
   shareThreads: $('#share-threads'),
+  songPicker: $('#song-picker'),
+  songPickerList: $('#song-picker-list'),
+  songPickerClose: $('#song-picker-close'),
   shareCopy: $('#share-copy'),
   shareToast: $('#cta-share-toast'),
   mashOverlay: $('#mash-overlay'),
@@ -334,10 +337,19 @@ const Snd = (() => {
   };
   const titleBgmStart = () => startBGM(TITLE_BGM);
   const gameBgmStart = () => {
-    const track = GAME_BGM_TRACKS[Math.floor(Math.random() * GAME_BGM_TRACKS.length)];
+    let track = null;
+    try {
+      const forced = localStorage.getItem('kyomuusa_force_track');
+      if (forced !== null && forced !== '') {
+        const idx = parseInt(forced, 10);
+        if (!isNaN(idx) && GAME_BGM_TRACKS[idx]) track = GAME_BGM_TRACKS[idx];
+      }
+    } catch (e) {}
+    if (!track) track = GAME_BGM_TRACKS[Math.floor(Math.random() * GAME_BGM_TRACKS.length)];
     startBGM(track.src);
     return track;
   };
+  const getTrackList = () => GAME_BGM_TRACKS;
   const ctaBgmStart = () => startBGM(CTA_BGM);
   const bgmCurrentTime = () => bgmAudio ? bgmAudio.currentTime : 0;
   const retryBgm = () => {
@@ -347,7 +359,7 @@ const Snd = (() => {
     }
   };
 
-  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, toggle, setMute, isMuted, resume, seLoad, playSE };
+  return { tap, hit, countBeep, finish, titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM, retryBgm, bgmCurrentTime, toggle, setMute, isMuted, resume, seLoad, playSE, getTrackList };
 })();
 
 function updateSoundBtn() {
@@ -1305,6 +1317,77 @@ function onNo(ev) {
   doShake(5);
 }
 
+/* ---------- Debug: Song picker (5連タップで起動) ---------- */
+const SONG_PICKER_KEY = 'kyomuusa_force_track';
+const SONG_PICKER_TAP_WINDOW = 1500; // 前タップから1.5秒以内で連続判定
+const SONG_PICKER_REQUIRED = 5;
+const songTapTimes = [];
+
+function getForcedTrackIdx() {
+  try {
+    const v = localStorage.getItem(SONG_PICKER_KEY);
+    if (v === null || v === '') return null;
+    const idx = parseInt(v, 10);
+    return isNaN(idx) ? null : idx;
+  } catch (e) { return null; }
+}
+function setForcedTrackIdx(idx) {
+  try {
+    if (idx === null || idx === undefined) localStorage.removeItem(SONG_PICKER_KEY);
+    else localStorage.setItem(SONG_PICKER_KEY, String(idx));
+  } catch (e) {}
+}
+function buildSongPicker() {
+  if (!els.songPickerList) return;
+  const list = Snd.getTrackList();
+  const current = getForcedTrackIdx();
+  const items = [
+    { idx: null, label: 'RANDOM', tag: 'default' },
+    ...list.map((t, i) => ({ idx: i, label: t.title, tag: 'BPM ' + t.bpm })),
+  ];
+  els.songPickerList.innerHTML = '';
+  items.forEach((it) => {
+    const btn = document.createElement('button');
+    btn.className = 'song-picker-btn' + ((current === it.idx || (current === null && it.idx === null)) ? ' selected' : '');
+    btn.innerHTML = '<span class="sp-label">' + it.label + '</span><span class="sp-tag">' + it.tag + '</span>';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setForcedTrackIdx(it.idx);
+      buildSongPicker();
+      closeSongPicker();
+    });
+    els.songPickerList.appendChild(btn);
+  });
+}
+function openSongPicker() {
+  if (!els.songPicker) return;
+  buildSongPicker();
+  els.songPicker.classList.add('show');
+  els.songPicker.setAttribute('aria-hidden', 'false');
+}
+function closeSongPicker() {
+  if (!els.songPicker) return;
+  els.songPicker.classList.remove('show');
+  els.songPicker.setAttribute('aria-hidden', 'true');
+}
+function handleTitleTap(ev) {
+  if (!els.scenes.title || !els.scenes.title.classList.contains('active')) return;
+  if (els.songPicker && els.songPicker.classList.contains('show')) return;
+  // 除外: GAME START / sound toggle / picker自身
+  if (ev.target && ev.target.closest && ev.target.closest('.start-btn, .sound-toggle, .song-picker')) return;
+  const now = performance.now();
+  // 窓切れ判定
+  if (songTapTimes.length && now - songTapTimes[songTapTimes.length - 1] > SONG_PICKER_TAP_WINDOW) {
+    songTapTimes.length = 0;
+  }
+  songTapTimes.push(now);
+  if (songTapTimes.length >= SONG_PICKER_REQUIRED) {
+    songTapTimes.length = 0;
+    openSongPicker();
+  }
+}
+
 /* ---------- Wire up ---------- */
 function bind() {
   const startFn = (e) => { e && e.preventDefault && e.preventDefault(); Snd.resume(); Snd.playSE('se3', 0.21); Snd.fadeOutBGM(1000); startGame(); };
@@ -1357,6 +1440,13 @@ function bind() {
   };
   document.addEventListener('pointerdown', firstGesture, { once: true, capture: true });
   document.addEventListener('keydown', firstGesture, { once: true, capture: true });
+
+  // Debug: 5連タップで曲選択
+  on(els.scenes.title, 'pointerdown', handleTitleTap);
+  on(els.songPickerClose, 'click', (e) => { e.preventDefault(); closeSongPicker(); });
+  // 背景タップで閉じない（CLOSEボタンのみで閉じる）
+  on(els.songPicker, 'pointerdown', (e) => { e.stopPropagation(); });
+  on(els.songPicker, 'click', (e) => { e.stopPropagation(); });
 }
 
 /* ---------- Tweaks ---------- */
