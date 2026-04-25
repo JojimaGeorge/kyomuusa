@@ -8,8 +8,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  /* 中央配置: グループ全体が画面中央に集まり、上下に均等な余白ができる。
+     space-between (要素間が広がってアンバランス) や flex-start (下が空く) より自然。
+     start-btn だけ前後に大きめ margin を取って強調。 */
+  justify-content: center;
   padding: 36px 0 44px;
+  gap: 14px;
 }
 .title-stage {
   position: static;
@@ -31,13 +35,13 @@
   opacity: 1;
   filter: drop-shadow(0 8px 0 rgba(42,11,74,0.35));
 }
-.title-word-1 { width: 76%; max-width: 310px; }
-.title-word-2 { width: 66%; max-width: 268px; }
+.title-word-1 { width: 84%; max-width: 360px; }
+.title-word-2 { width: 74%; max-width: 310px; }
 
 .title-kyomu {
-  margin-top: 24px;
-  width: 56%;
-  max-width: 240px;
+  margin-top: 4px;
+  width: 60%;
+  max-width: 280px;
   height: auto;
   z-index: 3;
   pointer-events: none;
@@ -74,7 +78,8 @@
 /* ---------- GAME START button ---------- */
 .start-btn {
   position: static;
-  margin: 0 auto;
+  /* 中央配置時、GAME START の前だけ少し大きく取って強調。後ろは powered-by が直下に来るので 0。 */
+  margin: 24px auto 0;
   background: linear-gradient(180deg, #fff 0%, #FFE600 100%);
   color: var(--deep);
   font-family: 'Bagel Fat One', sans-serif;
@@ -100,6 +105,7 @@
 /* ---------- Tagline (typewriter speech bubble) ---------- */
 .title-tagline {
   position: static;
+  /* 親 #scene-title の gap: 14px がうさぎとの隙間を担当。個別 margin は不要。 */
   margin: 0 auto;
   font-family: 'DotGothic16', 'Courier New', monospace;
   color: #ffffff;
@@ -108,9 +114,9 @@
   letter-spacing: 1.2px;
   line-height: 1.8;
   text-align: left;
-  padding: 12px 22px;
-  width: 290px;
-  min-height: 76px;
+  padding: 14px 24px;
+  width: 320px;
+  min-height: 84px;
   border: 2px solid rgba(255,255,255,0.75);
   background: rgba(30, 10, 50, 0.55);
   backdrop-filter: blur(4px);

@@ -31,37 +31,37 @@
    Mobile gameplay UI: shrink rhythm ring + push button
    ============================================================ */
 @media (max-width: 430px) {
-  .rhythm-wrap { width: 178px; height: 178px; }
+  .rhythm-wrap { width: 250px; height: 250px; }
   .rhythm-ring,
-  .rhythm-indicator { width: 170px; height: 170px; }
-  .rhythm-ticks { width: 178px; height: 178px; }
-  .rhythm-ticks i { transform-origin: 50% 85px; height: 9px; width: 3px; }
+  .rhythm-indicator { width: 240px; height: 240px; }
+  .rhythm-ticks { width: 250px; height: 250px; }
+  .rhythm-ticks i { transform-origin: 50% 121px; height: 12px; width: 4px; }
   .push-btn {
-    width: 108px; height: 108px;
-    font-size: 22px; letter-spacing: 1px;
-    -webkit-text-stroke: 1.5px var(--deep);
-    text-shadow: 0 2px 0 var(--deep);
+    width: 160px; height: 160px;
+    font-size: 32px; letter-spacing: 2px;
+    -webkit-text-stroke: 2px var(--deep);
+    text-shadow: 0 3px 0 var(--deep), 0 -1px 0 #FFB6FA;
     box-shadow:
-      inset 0 -7px 0 rgba(42,11,74,0.3),
-      inset 0 5px 0 rgba(255,255,255,0.4),
-      0 0 0 3px #fff,
-      0 0 0 5px var(--deep),
-      0 0 0 7px #FFE600,
-      0 8px 0 var(--deep),
-      0 14px 24px rgba(255,77,246,0.5);
+      inset 0 -10px 0 rgba(42,11,74,0.3),
+      inset 0 8px 0 rgba(255,255,255,0.4),
+      0 0 0 4px #fff,
+      0 0 0 7px var(--deep),
+      0 0 0 10px #FFE600,
+      0 12px 0 var(--deep),
+      0 20px 36px rgba(255,77,246,0.5);
   }
   .push-btn:active, .push-btn.pressed {
     box-shadow:
-      inset 0 -4px 0 rgba(42,11,74,0.3),
-      inset 0 3px 0 rgba(255,255,255,0.4),
-      0 0 0 4px #fff,
-      0 0 0 6px var(--deep),
-      0 0 0 8px #FFE600,
-      0 4px 0 var(--deep),
-      0 7px 14px rgba(255,77,246,0.5);
+      inset 0 -6px 0 rgba(42,11,74,0.3),
+      inset 0 4px 0 rgba(255,255,255,0.4),
+      0 0 0 5px #fff,
+      0 0 0 9px var(--deep),
+      0 0 0 12px #FFE600,
+      0 6px 0 var(--deep),
+      0 10px 20px rgba(255,77,246,0.5);
   }
-  .push-zone { height: 28%; padding-bottom: 18px; }
-  .beat-badge { top: 76px; font-size: 12px; padding: 3px 10px; }
+  .push-zone { height: 34%; padding-bottom: 22px; }
+  .beat-badge { top: 110px; font-size: 14px; padding: 3px 12px; }
 }
 
 /* ============================================================
@@ -78,33 +78,36 @@
 }
 
 /* ============================================================
-   Short viewport (~iPhone SE 667h): title stage compaction
+   Short viewport (~iPhone SE 667h): title padding 詰め + ボタン compactness
+   画像 (word-1/2/kyomu/tagline) はベースの大型値をそのまま使う方針 — SE でも
+   他端末同等に主役要素を大きく表示。375×667 で title 群合計 ~613px (padding
+   含む) なので 667 に収まる。 GAME START とフッターだけ縮める。
    ============================================================ */
 @media (max-height: 750px) {
-  #scene-title { padding: 16px 0 16px; }
+  /* SE 375x667 で title 群合計が 667 に収まるよう gap/margin/tagline を compact 化。
+     画像 (word-1/2/kyomu) はベース大型値を維持 (ユーザー要望)。 */
+  #scene-title { padding: 16px 0 16px; gap: 8px; }
   .title-words { gap: 6px; }
-  .title-word-1 { max-width: 220px; }
-  .title-word-2 { max-width: 186px; }
-  .title-kyomu { margin-top: 8px; width: 38%; max-width: 150px; }
-
+  .title-kyomu { margin-top: 0; }
   .title-tagline {
     font-size: 12px;
-    width: 284px;
-    padding: 10px 16px;
+    padding: 10px 18px;
     min-height: 64px;
     line-height: 1.6;
     letter-spacing: 1px;
   }
   .start-btn {
-    font-size: 13px;
-    padding: 7px 22px;
-    letter-spacing: 1.5px;
+    /* SE では tagline と狭いので少しだけ縮めるが、十分目立つサイズを維持 */
+    font-size: 18px;
+    padding: 12px 32px;
+    letter-spacing: 1.8px;
     white-space: nowrap;
-    box-shadow: 0 0 0 2px #FF3EA5, 0 0 0 3px #fff, 0 0 0 5px #3EE8FF, 0 5px 0 var(--deep), 0 10px 20px rgba(0,0,0,0.4);
+    margin: 14px auto 0;
+    box-shadow: 0 0 0 3px #FF3EA5, 0 0 0 5px #fff, 0 0 0 7px #3EE8FF, 0 6px 0 var(--deep), 0 12px 22px rgba(0,0,0,0.4);
   }
   .start-btn:active {
     transform: translateY(3px) scale(0.98);
-    box-shadow: 0 0 0 2px #FF3EA5, 0 0 0 3px #fff, 0 0 0 5px #3EE8FF, 0 2px 0 var(--deep), 0 5px 12px rgba(0,0,0,0.4);
+    box-shadow: 0 0 0 3px #FF3EA5, 0 0 0 5px #fff, 0 0 0 7px #3EE8FF, 0 3px 0 var(--deep), 0 6px 14px rgba(0,0,0,0.4);
   }
   .powered-by {
     margin: 4px auto 0;
@@ -114,42 +117,17 @@
 }
 
 /* ============================================================
-   iPhone SE / very short combo: rhythm UI super-compact
-   (kept on top of `max-width:430` rules above; both apply)
+   iPhone SE / very short combo: ゲーム画面のみ v=117 のバランスに戻す。
+   キャラは大きく (400×440) / PUSH は小さく (82px) / ring 138px。
+   v=117 で「66px 隙間」が確保されてバランス良かったとのユーザー判定。
+   タイトル画面は別 (max-height:750) でベース大型値を継承。
    ============================================================ */
 @media (max-width: 430px) and (max-height: 720px) {
-  .char-stage { top: 44%; }
-  .rhythm-wrap { width: 138px; height: 138px; }
-  .rhythm-ring,
-  .rhythm-indicator { width: 130px; height: 130px; }
-  .rhythm-ticks { width: 138px; height: 138px; }
-  .rhythm-ticks i { transform-origin: 50% 65px; height: 8px; width: 2.5px; }
-  .push-btn {
-    width: 82px; height: 82px;
-    font-size: 17px; letter-spacing: 0.5px;
-    -webkit-text-stroke: 1px var(--deep);
-    text-shadow: 0 1px 0 var(--deep);
-    box-shadow:
-      inset 0 -5px 0 rgba(42,11,74,0.3),
-      inset 0 4px 0 rgba(255,255,255,0.4),
-      0 0 0 2px #fff,
-      0 0 0 4px var(--deep),
-      0 0 0 6px #FFE600,
-      0 6px 0 var(--deep),
-      0 10px 18px rgba(255,77,246,0.5);
-  }
-  .push-btn:active, .push-btn.pressed {
-    box-shadow:
-      inset 0 -3px 0 rgba(42,11,74,0.3),
-      inset 0 2px 0 rgba(255,255,255,0.4),
-      0 0 0 3px #fff,
-      0 0 0 5px var(--deep),
-      0 0 0 7px #FFE600,
-      0 3px 0 var(--deep),
-      0 6px 12px rgba(255,77,246,0.5);
-  }
-  .push-zone { height: 22%; padding-bottom: 12px; }
-  .beat-badge { top: 58px; font-size: 11px; padding: 2px 8px; }
+  /* SE: max-width:430 の大型 PUSH (180px/ring 280px) をそのまま継承。
+     char-stage と被ってOK (z-index push-zone:6 > char-stage:5 で PUSH が上)。
+     ユーザー判定: 「最悪ボタンとうさぎ被ってもいいからボタン大きめに」優先。
+     padding-bottom のみ SE 用に微調整 (24→14)。 */
+  .push-zone { padding-bottom: 14px; }
 }
 
 /* ============================================================
