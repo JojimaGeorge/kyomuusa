@@ -196,52 +196,9 @@ function buildSongPicker() {
     els.songPickerList.appendChild(btn);
   });
 }
-/* ---------- PERFECT SE picker (試聴+選択を1タップに集約) ---------- */
-const SE_PICKER_KEY = 'kyomuusa_perfect_se';
-const SE_VARIANTS = [
-  { key: 'A', label: 'A 鐘トライアド', tag: '現行' },
-  { key: 'B', label: 'B 上昇キラキラ', tag: 'sparkle' },
-  { key: 'C', label: 'C コインゲット', tag: 'coin' },
-  { key: 'D', label: 'D メジャーチャイム', tag: 'chime' },
-  { key: 'E', label: 'E パワーパンチ', tag: 'punch' },
-  { key: 'F', label: 'F チュイーン↑', tag: 'sweep' },
-  { key: 'G', label: 'G ドン!→キュイーン', tag: 'impact+sweep' },
-  { key: 'H', label: 'H 金属チュイーン', tag: 'metallic' },
-  { key: 'I', label: 'I スーパーヒット', tag: 'super hit' },
-];
-function getCurrentSeKey() {
-  try {
-    const v = (localStorage.getItem(SE_PICKER_KEY) || '').toUpperCase();
-    return SE_VARIANTS.some(x => x.key === v) ? v : 'A';
-  } catch (e) { return 'A'; }
-}
-function setCurrentSeKey(key) {
-  try { localStorage.setItem(SE_PICKER_KEY, key); } catch (e) {}
-}
-function buildSePicker() {
-  if (!els.sePickerList) return;
-  const current = getCurrentSeKey();
-  els.sePickerList.innerHTML = '';
-  SE_VARIANTS.forEach((it) => {
-    const btn = document.createElement('button');
-    btn.className = 'song-picker-btn' + (current === it.key ? ' selected' : '');
-    btn.innerHTML = '<span class="sp-label">' + it.label + '</span><span class="sp-tag">' + it.tag + '</span>';
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      Snd.unlockAudio && Snd.unlockAudio();
-      setCurrentSeKey(it.key);
-      Snd.previewPerfect(it.key);
-      buildSePicker();
-    });
-    els.sePickerList.appendChild(btn);
-  });
-}
-
 export function openSongPicker() {
   if (!els.songPicker) return;
   buildSongPicker();
-  buildSePicker();
   if (els.songPickerVersion) {
     const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';
     const bgmInfo = (Snd.getBgmState && Snd.getBgmState()) || '';

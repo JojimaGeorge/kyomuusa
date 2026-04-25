@@ -182,21 +182,12 @@
 .song-picker-card {
   width: 78%;
   max-width: 280px;
-  max-height: 88vh;
-  overflow-y: auto;
   padding: 18px 16px 14px;
   background: #1a0a2e;
   border: 3px solid #FFE600;
   box-shadow: 0 0 0 3px #1a0a2e, 0 0 0 6px #FF3EA5, 0 12px 32px rgba(0,0,0,0.5);
   color: #fff;
   text-align: center;
-}
-.song-picker-section-title {
-  font-size: 11px;
-  letter-spacing: 2.4px;
-  color: #FFE600;
-  margin: 6px 0 10px;
-  text-shadow: 0 2px 0 #1a0a2e;
 }
 .song-picker-title {
   font-size: 14px;

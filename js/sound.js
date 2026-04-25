@@ -211,96 +211,29 @@ export const Snd = (() => {
 
   const tap = () => { resume(); tone({ freq: 880, type: 'square', dur: 0.05, gain: 0.06 }); };
 
-  // ---- PERFECT SE candidates ----
-  // 切替: localStorage.setItem('kyomuusa_perfect_se', 'A'..'E') または ?se=B URL param
-  // 試聴: コンソールで Snd.previewPerfect('B')
-  const PERFECT_SE_VARIANTS = {
-    // A: 現行のベルトライアド（C6 + G6 + C7）
-    A: () => {
-      tone({ freq: 1047, type: 'sine',     dur: 0.2,  gain: 0.18 });
-      tone({ freq: 1568, type: 'sine',     dur: 0.24, gain: 0.12, when: 0.03 });
-      tone({ freq: 2093, type: 'triangle', dur: 0.28, gain: 0.08, when: 0.06 });
-    },
-    // B: 上昇キラキラ（E6→A6→D7→F7 アルペジオ + 高域シマー）
-    B: () => {
-      tone({ freq: 1319, type: 'sine',     dur: 0.10, gain: 0.14, when: 0.00 });
-      tone({ freq: 1760, type: 'sine',     dur: 0.10, gain: 0.14, when: 0.05 });
-      tone({ freq: 2349, type: 'sine',     dur: 0.12, gain: 0.13, when: 0.10 });
-      tone({ freq: 2794, type: 'triangle', dur: 0.18, gain: 0.10, when: 0.15 });
-      noise({ dur: 0.20, gain: 0.04, filterFreq: 6000, when: 0.05 });
-    },
-    // C: コインゲット風（E6→E7 速い2音上昇、マリオ系）
-    C: () => {
-      tone({ freq: 1319, type: 'square', dur: 0.07, gain: 0.16, when: 0.00 });
-      tone({ freq: 2637, type: 'square', dur: 0.18, gain: 0.18, when: 0.07 });
-    },
-    // D: メジャーチャイム（C6+E6+G6+C7 = Cメジャー和音、豊かで明るい）
-    D: () => {
-      tone({ freq: 1047, type: 'sine',     dur: 0.45, gain: 0.16, when: 0.00 });
-      tone({ freq: 1319, type: 'sine',     dur: 0.45, gain: 0.13, when: 0.02 });
-      tone({ freq: 1568, type: 'sine',     dur: 0.45, gain: 0.11, when: 0.04 });
-      tone({ freq: 2093, type: 'sine',     dur: 0.50, gain: 0.08, when: 0.06 });
-    },
-    // E: パワーパンチ（C5低音 + C7高音 stack + 短ノイズ、打撃インパクト系）
-    E: () => {
-      tone({ freq: 523,  type: 'sawtooth', dur: 0.10, gain: 0.16, when: 0.00 });
-      tone({ freq: 2093, type: 'square',   dur: 0.08, gain: 0.14, when: 0.00 });
-      noise({ dur: 0.06, gain: 0.10, filterFreq: 3000, when: 0.00 });
-    },
-    // F: チュイーン↑（440→3520Hz急上昇sweep + 上で持続、王道パーフェクト感）
-    F: () => {
-      sweep({ fromFreq: 440,  toFreq: 3520, type: 'sawtooth', sweepDur: 0.10, dur: 0.45, gain: 0.20 });
-      tone({  freq: 5274,     type: 'triangle',                              dur: 0.30, gain: 0.10, when: 0.10 });
-      noise({ dur: 0.05, gain: 0.08, filterFreq: 6000 });
-    },
-    // G: ドン!→キュイーン↑（低音ドン + 上昇sweep + 高音tail、インパクト+チュイーン）
-    G: () => {
-      tone({  freq: 110,      type: 'square',                                dur: 0.08, gain: 0.22, when: 0.00 });
-      noise({ dur: 0.06, gain: 0.14, filterFreq: 800 });
-      sweep({ fromFreq: 880,  toFreq: 4400, type: 'sawtooth', sweepDur: 0.10, dur: 0.40, gain: 0.18, when: 0.02 });
-      tone({  freq: 4186,     type: 'sine',                                  dur: 0.25, gain: 0.10, when: 0.20 });
-    },
-    // H: 金属チュイーン（detune重ねでうなり感、刺さる金属系）
-    H: () => {
-      sweep({ fromFreq: 1320, toFreq: 2637, type: 'square',   sweepDur: 0.08, dur: 0.50, gain: 0.16 });
-      sweep({ fromFreq: 1325, toFreq: 2642, type: 'square',   sweepDur: 0.08, dur: 0.50, gain: 0.12, when: 0.005 });
-      tone({  freq: 5274,     type: 'sine',                                  dur: 0.30, gain: 0.10, when: 0.06 });
-    },
-    // I: スーパーヒット（ノイズ衝撃 + sweep + 鐘 + sparkle 多重ヒット）
-    I: () => {
-      noise({ dur: 0.04, gain: 0.14, filterFreq: 3000 });
-      sweep({ fromFreq: 600,  toFreq: 2400, type: 'sawtooth', sweepDur: 0.06, dur: 0.20, gain: 0.18 });
-      tone({  freq: 2637,     type: 'sine',                                  dur: 0.35, gain: 0.16, when: 0.03 });
-      tone({  freq: 5274,     type: 'triangle',                              dur: 0.25, gain: 0.12, when: 0.10 });
-      tone({  freq: 3136,     type: 'sine',                                  dur: 0.40, gain: 0.10, when: 0.06 });
-    },
+  // ---- PERFECT SE: streak >= 3 はスーパーヒット（多重ヒット）、単発(+3表示)は
+  //                  メジャーチャイム。視覚階層と音の階層を揃える ----
+  const perfectSingle = () => {
+    // メジャーチャイム（C6+E6+G6+C7 = Cメジャー和音、豊かで明るい）
+    tone({ freq: 1047, type: 'sine', dur: 0.45, gain: 0.16, when: 0.00 });
+    tone({ freq: 1319, type: 'sine', dur: 0.45, gain: 0.13, when: 0.02 });
+    tone({ freq: 1568, type: 'sine', dur: 0.45, gain: 0.11, when: 0.04 });
+    tone({ freq: 2093, type: 'sine', dur: 0.50, gain: 0.08, when: 0.06 });
   };
-  const getPerfectSeKey = () => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const fromUrl = (params.get('se') || '').toUpperCase();
-      if (PERFECT_SE_VARIANTS[fromUrl]) return fromUrl;
-      const fromLs = (localStorage.getItem('kyomuusa_perfect_se') || '').toUpperCase();
-      if (PERFECT_SE_VARIANTS[fromLs]) return fromLs;
-    } catch (e) {}
-    return 'I';
-  };
-  const previewPerfect = (key) => {
-    resume();
-    const k = (key || '').toUpperCase();
-    const fn = PERFECT_SE_VARIANTS[k] || PERFECT_SE_VARIANTS.A;
-    fn();
+  const perfectStreak = () => {
+    // スーパーヒット（ノイズ衝撃 + sweep + 鐘 + sparkle 多重ヒット）
+    noise({ dur: 0.04, gain: 0.14, filterFreq: 3000 });
+    sweep({ fromFreq: 600, toFreq: 2400, type: 'sawtooth', sweepDur: 0.06, dur: 0.20, gain: 0.18 });
+    tone({ freq: 2637, type: 'sine',     dur: 0.35, gain: 0.16, when: 0.03 });
+    tone({ freq: 5274, type: 'triangle', dur: 0.25, gain: 0.12, when: 0.10 });
+    tone({ freq: 3136, type: 'sine',     dur: 0.40, gain: 0.10, when: 0.06 });
   };
 
   const hit = (rating, opts) => {
     resume();
     if (rating === 'perfect') {
-      // Streak >= 3 (PERFECT × N表示時) は派手なvariant、単発(+3表示)は D 固定。
-      // 視覚階層 (+3 < PERFECT × N) と音の階層を揃える。
       const streak = (opts && opts.streak) || 0;
-      const key = streak >= 3 ? getPerfectSeKey() : 'D';
-      const fn = PERFECT_SE_VARIANTS[key] || PERFECT_SE_VARIANTS.I;
-      fn();
+      if (streak >= 3) perfectStreak(); else perfectSingle();
     } else if (rating === 'great') {
       tone({ freq: 880,  type: 'triangle', dur: 0.14, gain: 0.14 });
       tone({ freq: 1320, type: 'sine',     dur: 0.18, gain: 0.08, when: 0.02 });
@@ -470,7 +403,6 @@ export const Snd = (() => {
     seLoad, playSE, getTrackList,
     unlockAudio, ensurePlaying,
     getCtxState, getBgmState, getAudioSessionType,
-    previewPerfect,
   };
 })();
 
