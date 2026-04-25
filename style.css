@@ -159,8 +159,8 @@ body {
 
 .title-kyomu {
   margin-top: 24px;
-  width: 48%;
-  max-width: 200px;
+  width: 56%;
+  max-width: 240px;
   height: auto;
   z-index: 3;
   pointer-events: none;
@@ -179,6 +179,7 @@ body {
     font-size: 12px;
     width: 284px;
     padding: 10px 16px;
+    min-height: 64px;
     line-height: 1.6;
     letter-spacing: 1px;
   }
@@ -254,7 +255,7 @@ body {
   text-align: left;
   padding: 12px 22px;
   width: 290px;
-  min-height: 3.6em;
+  min-height: 76px;
   border: 2px solid rgba(255,255,255,0.75);
   background: rgba(30, 10, 50, 0.55);
   backdrop-filter: blur(4px);
