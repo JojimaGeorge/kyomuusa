@@ -13,8 +13,10 @@ export function renderGauge() {
   els.gaugeFillStripes.style.clipPath = `inset(0 ${100-pct}% 0 0)`;
   els.gaugeNum.textContent = Math.floor(pct) + '%';
   // Progressive hype stage: A → B → C → D → E. Never reverses.
-  if (pct >= 25 && state.gifStage === 'A' && !state.gifPendingAdvance) {
-    queueGifAdvance('B');
+  // A→B: queue待ちだとAループ終端まで最大2.8s遅延し実視で~40%まで上がってから切替に
+  // 見える。25%で即座にBへ切替（gifAdvanceTimerはsetGifStage内でクリアされる）。
+  if (pct >= 25 && state.gifStage === 'A') {
+    setGifStage('B');
   } else if (pct >= 60 && state.gifStage === 'C' && !state.gifPendingAdvance) {
     queueGifAdvance('D');
   }

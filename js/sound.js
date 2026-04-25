@@ -193,12 +193,66 @@ export const Snd = (() => {
   };
 
   const tap = () => { resume(); tone({ freq: 880, type: 'square', dur: 0.05, gain: 0.06 }); };
-  const hit = (rating) => {
-    resume();
-    if (rating === 'perfect') {
+
+  // ---- PERFECT SE candidates ----
+  // 切替: localStorage.setItem('kyomuusa_perfect_se', 'A'..'E') または ?se=B URL param
+  // 試聴: コンソールで Snd.previewPerfect('B')
+  const PERFECT_SE_VARIANTS = {
+    // A: 現行のベルトライアド（C6 + G6 + C7）
+    A: () => {
       tone({ freq: 1047, type: 'sine',     dur: 0.2,  gain: 0.18 });
       tone({ freq: 1568, type: 'sine',     dur: 0.24, gain: 0.12, when: 0.03 });
       tone({ freq: 2093, type: 'triangle', dur: 0.28, gain: 0.08, when: 0.06 });
+    },
+    // B: 上昇キラキラ（E6→A6→D7→F7 アルペジオ + 高域シマー）
+    B: () => {
+      tone({ freq: 1319, type: 'sine',     dur: 0.10, gain: 0.14, when: 0.00 });
+      tone({ freq: 1760, type: 'sine',     dur: 0.10, gain: 0.14, when: 0.05 });
+      tone({ freq: 2349, type: 'sine',     dur: 0.12, gain: 0.13, when: 0.10 });
+      tone({ freq: 2794, type: 'triangle', dur: 0.18, gain: 0.10, when: 0.15 });
+      noise({ dur: 0.20, gain: 0.04, filterFreq: 6000, when: 0.05 });
+    },
+    // C: コインゲット風（E6→E7 速い2音上昇、マリオ系）
+    C: () => {
+      tone({ freq: 1319, type: 'square', dur: 0.07, gain: 0.16, when: 0.00 });
+      tone({ freq: 2637, type: 'square', dur: 0.18, gain: 0.18, when: 0.07 });
+    },
+    // D: メジャーチャイム（C6+E6+G6+C7 = Cメジャー和音、豊かで明るい）
+    D: () => {
+      tone({ freq: 1047, type: 'sine',     dur: 0.45, gain: 0.16, when: 0.00 });
+      tone({ freq: 1319, type: 'sine',     dur: 0.45, gain: 0.13, when: 0.02 });
+      tone({ freq: 1568, type: 'sine',     dur: 0.45, gain: 0.11, when: 0.04 });
+      tone({ freq: 2093, type: 'sine',     dur: 0.50, gain: 0.08, when: 0.06 });
+    },
+    // E: パワーパンチ（C5低音 + C7高音 stack + 短ノイズ、打撃インパクト系）
+    E: () => {
+      tone({ freq: 523,  type: 'sawtooth', dur: 0.10, gain: 0.16, when: 0.00 });
+      tone({ freq: 2093, type: 'square',   dur: 0.08, gain: 0.14, when: 0.00 });
+      noise({ dur: 0.06, gain: 0.10, filterFreq: 3000, when: 0.00 });
+    },
+  };
+  const getPerfectSeKey = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = (params.get('se') || '').toUpperCase();
+      if (PERFECT_SE_VARIANTS[fromUrl]) return fromUrl;
+      const fromLs = (localStorage.getItem('kyomuusa_perfect_se') || '').toUpperCase();
+      if (PERFECT_SE_VARIANTS[fromLs]) return fromLs;
+    } catch (e) {}
+    return 'A';
+  };
+  const previewPerfect = (key) => {
+    resume();
+    const k = (key || '').toUpperCase();
+    const fn = PERFECT_SE_VARIANTS[k] || PERFECT_SE_VARIANTS.A;
+    fn();
+  };
+
+  const hit = (rating) => {
+    resume();
+    if (rating === 'perfect') {
+      const fn = PERFECT_SE_VARIANTS[getPerfectSeKey()] || PERFECT_SE_VARIANTS.A;
+      fn();
     } else if (rating === 'great') {
       tone({ freq: 880,  type: 'triangle', dur: 0.14, gain: 0.14 });
       tone({ freq: 1320, type: 'sine',     dur: 0.18, gain: 0.08, when: 0.02 });
@@ -368,6 +422,7 @@ export const Snd = (() => {
     seLoad, playSE, getTrackList,
     unlockAudio, ensurePlaying,
     getCtxState, getBgmState, getAudioSessionType,
+    previewPerfect,
   };
 })();
 

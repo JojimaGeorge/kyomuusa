@@ -148,6 +148,8 @@ function init() {
     if (navigator.audioSession) navigator.audioSession.type = 'playback';
   } catch (e) {}
   setupDom();
+  // PERFECT SE試聴用にコンソールから Snd.previewPerfect('A'..'E') 呼べるよう露出
+  try { window.Snd = Snd; } catch (e) {}
   // preload all stage GIFs
   Object.values(STAGE_GIFS).forEach(g => { new Image().src = g.src; });
   // Pre-gesture audio init: some iOS builds stabilize with ctx created early
