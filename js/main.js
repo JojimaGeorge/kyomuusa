@@ -25,6 +25,7 @@ import {
   openSongPicker, closeSongPicker, handleTitleTap,
   applyTweaks, setupTweaks,
 } from './ui-extras.js';
+import { updateLaneRect } from './notes.js';
 
 /* ---------- Wire up DOM event handlers ---------- */
 function bind() {
@@ -128,6 +129,10 @@ function bind() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Snd.ensurePlaying) Snd.ensurePlaying();
   });
+
+  // ノーツレーン幅キャッシュを resize / orientationchange で更新 (v=136)
+  window.addEventListener('resize',            updateLaneRect, { passive: true });
+  window.addEventListener('orientationchange', updateLaneRect, { passive: true });
 
   // Debug: 5連タップで曲選択
   on(els.scenes.title, 'pointerdown', handleTitleTap);

@@ -67,14 +67,14 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=135"/>
-<link rel="stylesheet" href="./css/title.css?v=135"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=135"/>
-<link rel="stylesheet" href="./css/overlays.css?v=135"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=135"/>
-<link rel="stylesheet" href="./css/cta.css?v=135"/>
-<link rel="stylesheet" href="./css/ranking.css?v=135"/>
-<link rel="stylesheet" href="./css/responsive.css?v=135"/>
+<link rel="stylesheet" href="./css/base.css?v=136"/>
+<link rel="stylesheet" href="./css/title.css?v=136"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=136"/>
+<link rel="stylesheet" href="./css/overlays.css?v=136"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=136"/>
+<link rel="stylesheet" href="./css/cta.css?v=136"/>
+<link rel="stylesheet" href="./css/ranking.css?v=136"/>
+<link rel="stylesheet" href="./css/responsive.css?v=136"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -169,11 +169,17 @@
         <img class="char-img" id="character-b" alt="" aria-hidden="true" width="380" style="visibility:hidden"/>
       </div>
 
+      <!-- ===== NOTE LANE (太鼓の達人型) ===== -->
+      <div class="note-lane" id="note-lane" aria-hidden="true">
+        <div class="note-judge-line"></div>
+        <!-- ノーツは js/notes.js で動的に追加 -->
+      </div>
+
       <div class="push-zone">
         <div class="rhythm-wrap">
-          <div class="rhythm-ring"></div>
-          <div class="rhythm-ticks" id="rhythm-ticks"></div>
-          <div class="rhythm-indicator" id="rhythm-indicator"></div>
+          <div class="rhythm-ring" style="display:none"></div>
+          <div class="rhythm-ticks" id="rhythm-ticks" style="display:none"></div>
+          <div class="rhythm-indicator" id="rhythm-indicator" style="display:none"></div>
           <div class="beat-badge" id="beat-badge"></div>
           <button class="push-btn" id="push-btn" aria-label="PUSH">PUSH!</button>
         </div>
@@ -342,6 +348,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=135"></script>
+<script type="module" src="./js/main.js?v=136"></script>
 </body>
 </html>

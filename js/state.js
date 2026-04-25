@@ -62,6 +62,11 @@ export const state = {
   midsongMash: false,       // 曲中 mash-zone フェーズ中フラグ (クリア後 mashMode と排他)
   midsongMashEndMs: 0,      // 曲中 mash 終了予定の audioMs
 
+  // Notes (太鼓型ノーツレーン v=136)
+  notes: [],                // 譜面ノート配列 — startGame 時に chart.notes をディープコピー
+  spawnedNoteIds: null,     // Set<number> — DOM 追加済みノートのインデックス
+  judgedNoteIds: null,      // Set<number> — 判定済みノートのインデックス
+
   // Indicator-only animation (during countdown)
   indicatorActive: false,
   indicatorRafId: null,

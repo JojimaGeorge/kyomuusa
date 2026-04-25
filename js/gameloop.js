@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { els, showScene, updateRectCache } from './dom.js';
 import { Snd, getAudioClockMs } from './sound.js';
 import { scheduleNextBeat, updateIndicator } from './rhythm.js';
+import { tickNotes, resetNotes, initNotes, clearAllNotes, updateLaneRect, finishMashNote } from './notes.js';
 import { renderGauge, setGifStage } from './stage.js';
 import { doFlash } from './effects.js';
 import { computeFinalScore, showClearSequence } from './score.js';
@@ -22,6 +23,12 @@ export function loop() {
 
   // 譜面イベントスキャン (audioMs ベース、重複防止 firedEventIds)
   tickChartEvents();
+
+  // ノーツレーン更新 (スポーン・移動・miss 除去)
+  // mash-mode (クリア後30連打) 中は停止。midsongMash 中は mash ノーツのみ継続。
+  if (!state.mashMode && !state.cleared) {
+    tickNotes(getAudioClockMs());
+  }
 
   // 曲中 mash-zone の自動終了チェック
   if (state.midsongMash) {
@@ -114,6 +121,8 @@ export function finishMidsongMash() {
   if (els.scenes && els.scenes.game) {
     els.scenes.game.classList.remove('midsong-mash');
   }
+  // mash ノーツ DOM を除去 (notes.js)
+  finishMashNote();
   // rhythm-ring 色を chorus のまま維持 (section-chorus class は残す)
 }
 
@@ -137,6 +146,11 @@ export function startGame() {
   state.firedEventIds = new Set();
   state.midsongMash = false;
   state.midsongMashEndMs = 0;
+  // ノーツレーンリセット
+  state.notes = [];
+  state.spawnedNoteIds = new Set();
+  state.judgedNoteIds  = new Set();
+  resetNotes();
   els.scenes.game.classList.remove('mash-mode', 'midsong-mash');
   els.pushBtn.classList.remove('mash-pulse');
   if (els.mashOverlay) els.mashOverlay.classList.remove('show');
@@ -169,6 +183,8 @@ export function startGame() {
       if (chart) {
         state.currentChart = chart;
         state.firedEventIds = new Set();
+        // v=136: notes 配列を初期化 (太鼓型ノーツレーン)
+        initNotes(chart.notes || []);
       }
     }).catch(() => { /* 譜面なしでも動作継続 */ });
   }
@@ -222,6 +238,7 @@ export function beginPlay() {
   // handles drift-free judgment/visuals, so beginPlay just flips running=true.
   stopIndicatorAnimation(); // hand off to the main loop, no double-tick
   updateRectCache();
+  updateLaneRect(); // ノーツレーン幅キャッシュ (feedback_bounding_rect_cache)
   state.startAt = performance.now();
   state.beatIndex = -1;
   state.running = true;
@@ -323,6 +340,7 @@ export function triggerClear() {
   state.rankingPromise.then(r => { state.rankingResult = r; }).catch(() => {});
   cancelAnimationFrame(state.rafId);
   stopIndicatorAnimation(); // safety: kill countdown rAF if it somehow leaked
+  clearAllNotes();          // ノーツ DOM を全除去 (v=136)
   Snd.bgmStop();
   doFlash(0.6);
   // Cancel any pending stage advance; play F only after current loop GIF finishes its cycle

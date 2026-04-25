@@ -6,6 +6,7 @@ import { TUNING } from './config.js';
 import { state } from './state.js';
 import { els } from './dom.js';
 import { Snd, getAudioClockMs } from './sound.js';
+import { findBestNote, hitNote } from './notes.js';
 
 /* ---------- Rhythm tick decorations ---------- */
 export function buildTicks() {
@@ -150,54 +151,39 @@ export function updateIndicator(now) {
   }
 }
 
-/* ---------- Tap judgment ----------
-   One-judgement-per-beat: each beat index can be claimed by only one tap.
-   Subsequent taps on an already-claimed beat are forced to miss, killing
-   spam-tap strategies. */
+/* ---------- Tap judgment (v=136: 譜面ベース) ----------
+   等差数列前提 (offsetMs + N * interval) を完全廃止。
+   notes.js の findBestNote() で最近傍未判定ノーツを取得して判定する。
+   判定窓は Perfect ±100 / Great ±190 / Good ±290ms 維持。
+
+   chart.notes が未ロードの場合 (dynamic import 遅延中) は miss を返す。
+   latency 補正は getAudioClockMs() ベースで行う。
+*/
 export function judgeTap(now) {
-  const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
-  const meta = state.currentBgmMeta;
+  const latency = TUNING.beatLatencyMs || 0;
+  const audioMs = getAudioClockMs();
+  const heardMs = audioMs - latency;   // ユーザーが「聞いた」タイミング
 
-  if (TUNING.useAudioTimeSync && meta) {
-    // Audio-time path: compare tap moment to beat moments in audio time.
-    const latency = TUNING.beatLatencyMs || 0;
-    const audioMs = getAudioClockMs();
-    const heardMs = audioMs - latency;
-    const nearestN = Math.round((heardMs - meta.offsetMs) / interval);
-    let bestDt = Infinity, bestIdx = null;
-    for (const n of [nearestN - 1, nearestN, nearestN + 1]) {
-      if (n < 0) continue;
-      if (state.judgedBeats.has(n)) continue;
-      const beatMs = meta.offsetMs + n * interval;
-      const dt = Math.abs(heardMs - beatMs);
-      if (dt < bestDt) { bestDt = dt; bestIdx = n; }
-    }
-    if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
-      return { rating: 'miss', gain: TUNING.gainMiss };
-    }
-    state.judgedBeats.add(bestIdx);
-    if (bestDt <= TUNING.perfectWindowMs) return { rating: 'perfect', gain: TUNING.gainPerfect };
-    if (bestDt <= TUNING.greatWindowMs)   return { rating: 'great',   gain: TUNING.gainGreat };
-    return { rating: 'good', gain: TUNING.gainGood };
-  }
-
-  // Legacy wall-clock path
-  const nextIdx = state.beatIndex;
-  const prevIdx = state.beatIndex - 1;
-  const dtNext = Math.abs(now - state.nextBeatAt);
-  const dtPrev = Math.abs(now - (state.nextBeatAt - interval));
-
-  let bestDt = Infinity;
-  let bestIdx = null;
-  if (prevIdx >= 0 && !state.judgedBeats.has(prevIdx) && dtPrev < bestDt) { bestDt = dtPrev; bestIdx = prevIdx; }
-  if (!state.judgedBeats.has(nextIdx) && dtNext < bestDt) { bestDt = dtNext; bestIdx = nextIdx; }
-
-  if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
+  // 譜面ノーツが未ロードなら miss
+  if (!state.notes || state.notes.length === 0) {
     return { rating: 'miss', gain: TUNING.gainMiss };
   }
 
-  state.judgedBeats.add(bestIdx);
-  if (bestDt <= TUNING.perfectWindowMs) return { rating: 'perfect', gain: TUNING.gainPerfect };
-  if (bestDt <= TUNING.greatWindowMs)   return { rating: 'great',   gain: TUNING.gainGreat };
-  return { rating: 'good', gain: TUNING.gainGood };
+  const result = findBestNote(heardMs);
+  if (!result) {
+    return { rating: 'miss', gain: TUNING.gainMiss };
+  }
+
+  const { note, dt } = result;
+
+  // 判定確定: DOM 除去 + judged フラグ
+  let rating;
+  if (dt <= TUNING.perfectWindowMs)      rating = 'perfect';
+  else if (dt <= TUNING.greatWindowMs)   rating = 'great';
+  else                                   rating = 'good';
+
+  hitNote(note, rating);
+
+  const gainMap = { perfect: TUNING.gainPerfect, great: TUNING.gainGreat, good: TUNING.gainGood };
+  return { rating, gain: gainMap[rating] };
 }

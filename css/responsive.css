@@ -62,6 +62,8 @@
   }
   .push-zone { height: 34%; padding-bottom: 22px; }
   .beat-badge { top: 110px; font-size: 14px; padding: 3px 12px; }
+  /* note-lane: push-zone が 34% に縮むので bottom を合わせる */
+  .note-lane { bottom: calc(34% + 20px); }
 }
 
 /* ============================================================
