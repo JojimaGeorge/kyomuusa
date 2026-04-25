@@ -1788,6 +1788,14 @@ body {
   font-family: 'DotGothic16', 'VT323', monospace;
   color: #fff;
   z-index: 2;
+  /* When top5外 + YOU row overflows on short screens (iPhone SE), allow internal
+     vertical scroll so the user can reach their own rank. Horizontal swipe to
+     scoreboard still works because the swipe handler only preventDefaults when
+     dx dominates dy (see enableCtaSwipe). */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 .cta-ranking.show {
   opacity: 1;

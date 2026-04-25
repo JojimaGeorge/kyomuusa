@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v107';
+const GAME_VERSION = 'v108';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1642,8 +1642,12 @@ function enableCtaSwipe() {
     const t = ev.changedTouches ? ev.changedTouches[0] : ev;
     const dx = (t.clientX || 0) - startX;
     const current = wrap.dataset.slide;
-    if (dx < -THRESHOLD && current === CTA_SLIDE_RANKING) setCtaSlide(CTA_SLIDE_SCOREBOARD);
-    else if (dx > THRESHOLD && current === CTA_SLIDE_SCOREBOARD) setCtaSlide(CTA_SLIDE_RANKING);
+    // scoreboard is parked off-screen to the LEFT (translateX(-110%)) when ranking
+    // is active, and ranking is parked off-screen to the RIGHT when scoreboard is
+    // active. So swiping RIGHT on ranking should pull scoreboard in from the left,
+    // and swiping LEFT on scoreboard should pull ranking in from the right.
+    if (dx > THRESHOLD && current === CTA_SLIDE_RANKING) setCtaSlide(CTA_SLIDE_SCOREBOARD);
+    else if (dx < -THRESHOLD && current === CTA_SLIDE_SCOREBOARD) setCtaSlide(CTA_SLIDE_RANKING);
     dragging = false;
   };
   const onCancel = () => { pointerActive = false; dragging = false; };
@@ -1787,20 +1791,28 @@ function computeRank(score) {
    - decayPenalty: 減衰で失ったゲージ量 * 40 を減点。
    - efficiencyFactor: タップ数超過で減衰、下限 0.3。 */
 function computeFinalScore() {
-  const hitScore = state.runningScore || 0;
+  // Must stay in lock-step with server recomputeScore (game-api/src/index.js):
+  //   - hitScore clamped to 200 * taps (so combo-mult runningScore can't outrun server)
+  //   - mash taps are counted as 'great' for accuracyBonus (matches payload we POST,
+  //     where greatCount is inflated by mashCount to satisfy counts_do_not_sum)
+  // Without these, scoreboard (client total) and ranking row (server total) disagree.
+  const taps = state.taps || 0;
+  const HIT_SCORE_PER_TAP_CAP = 200;
+  const hitScore = Math.min(state.runningScore || 0, HIT_SCORE_PER_TAP_CAP * taps);
   const target = TUNING.targetTimeSec || 16;
   const rhythmSec = state.rhythmClearSec || state.clearTime;
   const timeBonus = rhythmSec <= target
     ? 5000 + Math.round((target - rhythmSec) * 1500)
     : Math.max(0, Math.round((target + 5 - rhythmSec) * 1000));
-  const accuracyBonus = (state.perfectCount || 0) * 400 + (state.greatCount || 0) * 150;
+  const greatForScore = (state.greatCount || 0) + (state.mashCount || 0);
+  const accuracyBonus = (state.perfectCount || 0) * 400 + greatForScore * 150;
   const comboBonus = (state.maxCombo || 0) * 200;
   const noMissBonus = (state.missCount || 0) === 0 ? 3000 : 0;
   const decayPenalty = Math.round((state.decayTotal || 0) * 40);
   const optimalTaps = 29;
   const efficiencyFactor = Math.max(
     0.3,
-    Math.min(1.0, optimalTaps / Math.max(state.taps || optimalTaps, optimalTaps))
+    Math.min(1.0, optimalTaps / Math.max(taps || optimalTaps, optimalTaps))
   );
   const raw = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus - decayPenalty;
   const total = Math.max(0, Math.round(raw * efficiencyFactor));
@@ -1974,17 +1986,49 @@ function showClearSequence() {
 
 function onYes() {
   Snd.playSE('se3');
-  showScene('video');
   const v = els.splashVideo;
   try { v.currentTime = 0; } catch(e){}
-  v.play().catch(()=>{});
-  v.onended = () => { showScene('cta'); renderCTAScore(); Snd.ctaBgmStart(); };
-  // safety fallback in case video can't play
+
+  let done = false;
+  const goToCTA = () => {
+    if (done) return;
+    done = true;
+    try { v.pause(); } catch(e){}
+    showScene('cta');
+    renderCTAScore();
+    Snd.ctaBgmStart();
+  };
+
+  // Defer showing scene-video until playback actually starts. iPhone Safari can
+  // take seconds to begin playback (preload=auto is only a hint), during which
+  // time the user would see scene-video's #000 background. If playback doesn't
+  // start within VIDEO_WAIT_MS we skip the video entirely and go to CTA so the
+  // user never stares at a black screen.
+  const VIDEO_WAIT_MS = 700;
+  let shown = false;
+  const onPlaying = () => {
+    v.removeEventListener('playing', onPlaying);
+    if (!shown && !done) { shown = true; showScene('video'); }
+  };
+  v.addEventListener('playing', onPlaying);
+  v.onended = goToCTA;
+
+  const p = v.play();
+  if (p && typeof p.catch === 'function') p.catch(goToCTA);
+
+  // If playback hasn't kicked in quickly, skip the video.
   setTimeout(() => {
-    if (els.scenes.video.classList.contains('active') && (v.paused || v.ended || v.readyState < 2)) {
-      showScene('cta');
-      renderCTAScore();
-      Snd.ctaBgmStart();
+    if (!shown && !done) {
+      v.removeEventListener('playing', onPlaying);
+      goToCTA();
+    }
+  }, VIDEO_WAIT_MS);
+
+  // Safety net: if the 'ended' event never fires (e.g. stuck decode), bail.
+  setTimeout(() => {
+    if (!done && els.scenes.video.classList.contains('active') &&
+        (v.paused || v.ended || v.readyState < 2)) {
+      goToCTA();
     }
   }, 5000);
 }
