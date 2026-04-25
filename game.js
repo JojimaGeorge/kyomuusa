@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v108';
+const GAME_VERSION = 'v109';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1270,6 +1270,14 @@ function startGame() {
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
 
+  // Warm up the splash video during gameplay. iOS Safari often ignores
+  // preload="auto" (especially on cellular / Low Power Mode), so we force a
+  // muted play → immediate pause. That makes iOS fetch, decode the first
+  // frame, and keep the buffer warm — by the time the user clicks YES the
+  // video is ready instantly instead of stalling behind a black #scene-video
+  // for up to 5s. Fire-and-forget; failures are caught by the onYes fallback.
+  preloadSplashVideo();
+
   // Pre-start BGM so the user hears the intro and feels the tempo before the
   // 3-2-1-GO! count lands. Safe now thanks to useAudioTimeSync: the Galaxy
   // v=88 failure mode (wall-clock cycleDuration inflating during cold-start
@@ -1982,6 +1990,30 @@ function showClearSequence() {
     const d = text[i-1] === '\n' ? 220 : (50 + Math.random()*40);
     setTimeout(typeNext, d);
   }, 650);
+}
+
+// Muted play+pause trick: forces iOS Safari to decode the first frame and
+// keep the media buffered, so onYes() can resume playback instantly. Called
+// from startGame() so we get the full game duration (~15s+) as headroom.
+let _splashVideoWarmed = false;
+async function preloadSplashVideo() {
+  const v = els.splashVideo;
+  if (!v || _splashVideoWarmed) return;
+  if (v.readyState >= 3) { _splashVideoWarmed = true; return; } // HAVE_FUTURE_DATA
+  try {
+    v.muted = true;
+    v.playsInline = true;
+    try { v.load(); } catch (e) {}
+    const p = v.play();
+    if (p && typeof p.then === 'function') {
+      await p;
+      v.pause();
+      try { v.currentTime = 0; } catch (e) {}
+      _splashVideoWarmed = true;
+    }
+  } catch (e) {
+    // Autoplay rejected — onYes() still has its 700ms skip-to-CTA fallback.
+  }
 }
 
 function onYes() {
