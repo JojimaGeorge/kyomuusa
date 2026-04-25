@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v110';
+const GAME_VERSION = 'v111';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1984,61 +1984,34 @@ function showClearSequence() {
   }, 650);
 }
 
-// iOS (iPhone/iPad/iPod + iPadOS-as-Mac) rarely plays the splash video in time:
-// Safari refuses muted autoplay outside a direct gesture stack, preload=auto is
-// ignored on cellular/Low Power, and decode warmup competes with the game loop
-// on low-end devices (iPhone SE 3 slowed down when we tried). Skipping the
-// video scene on iOS is simpler and faster than fighting Safari.
-const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
-               (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
-
 function onYes() {
   Snd.playSE('se3');
+  showScene('video');
   const v = els.splashVideo;
+  try { v.currentTime = 0; } catch(e){}
 
+  let done = false;
   const goToCTA = () => {
+    if (done) return;
+    done = true;
     try { v.pause(); } catch(e){}
     showScene('cta');
     renderCTAScore();
     Snd.ctaBgmStart();
   };
 
-  // iOS: skip scene-video entirely. The black #000 stall isn't worth it when
-  // the video probably won't play anyway.
-  if (IS_IOS) { goToCTA(); return; }
-
-  try { v.currentTime = 0; } catch(e){}
-
-  let done = false;
-  const finish = () => { if (done) return; done = true; goToCTA(); };
-
-  // Only show scene-video once playback actually starts. If playback doesn't
-  // kick in within VIDEO_WAIT_MS, skip to CTA so the user never stares at a
-  // black screen.
-  const VIDEO_WAIT_MS = 700;
-  let shown = false;
-  const onPlaying = () => {
-    v.removeEventListener('playing', onPlaying);
-    if (!shown && !done) { shown = true; showScene('video'); }
-  };
-  v.addEventListener('playing', onPlaying);
-  v.onended = finish;
-
+  v.onended = goToCTA;
   const p = v.play();
-  if (p && typeof p.catch === 'function') p.catch(finish);
+  if (p && typeof p.catch === 'function') p.catch(goToCTA);
 
-  setTimeout(() => {
-    if (!shown && !done) {
-      v.removeEventListener('playing', onPlaying);
-      finish();
-    }
-  }, VIDEO_WAIT_MS);
-
-  // Safety net: if 'ended' never fires (stuck decode), bail.
+  // Safety net: if 'ended' never fires (stuck decode / unsupported codec),
+  // bail after the video's natural duration + slack. Splash is ~3s so 5s is
+  // generous. The iOS-optimized encode (720x1732 H.264 Main L4.0) should
+  // play reliably on iPhone, but this guard protects against edge cases.
   setTimeout(() => {
     if (!done && els.scenes.video.classList.contains('active') &&
         (v.paused || v.ended || v.readyState < 2)) {
-      finish();
+      goToCTA();
     }
   }, 5000);
 }
