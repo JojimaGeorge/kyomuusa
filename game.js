@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v105';
+const GAME_VERSION = 'v106';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1466,13 +1466,17 @@ function showFinishOverlay() {
    result is ready by the time the CTA panel needs it.
    ============================================================ */
 async function submitScore() {
-  // Mash phase (99%→30連打) bumps runningScore/maxCombo but leaves taps and
-  // perfect/great/good/miss counts untouched, which fails server-side checks
-  // (max_combo_inconsistent, hit_score_out_of_range). Fold mashCount into
-  // taps + greatCount for the payload — state itself is left alone so the
-  // on-screen scoreboard keeps showing the full runningScore.
+  // state.taps already includes mash-phase taps (handleTap increments it before
+  // dispatching to doMashTap), but perfect/great/good/miss counters are NOT
+  // incremented during mash. Without compensation the server rejects us with
+  // counts_do_not_sum. maxCombo is also bumped to mashCount(=mashTarget 30)
+  // during mash, so we need hits >= maxCombo. Solution: attribute mashCount
+  // taps to greatCount for the payload only — state itself stays untouched
+  // so HUD / CTA scoreboard keep showing the real numbers. Also clamp
+  // hitScore because combo-multiplied runningScore can exceed the server's
+  // per-tap cap (200).
   const mashTaps = state.mashCount | 0;
-  const tapsTotal = (state.taps | 0) + mashTaps;
+  const tapsTotal = state.taps | 0; // already includes mashTaps
   const HIT_SCORE_PER_TAP_CAP = 200; // must match SANITY.hitScorePerTap in game-api/src/index.js
   const hitScore = Math.min(state.runningScore | 0, HIT_SCORE_PER_TAP_CAP * tapsTotal);
   const payload = {
