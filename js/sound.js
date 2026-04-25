@@ -283,7 +283,7 @@ export const Snd = (() => {
       const fromLs = (localStorage.getItem('kyomuusa_perfect_se') || '').toUpperCase();
       if (PERFECT_SE_VARIANTS[fromLs]) return fromLs;
     } catch (e) {}
-    return 'A';
+    return 'I';
   };
   const previewPerfect = (key) => {
     resume();
@@ -292,10 +292,14 @@ export const Snd = (() => {
     fn();
   };
 
-  const hit = (rating) => {
+  const hit = (rating, opts) => {
     resume();
     if (rating === 'perfect') {
-      const fn = PERFECT_SE_VARIANTS[getPerfectSeKey()] || PERFECT_SE_VARIANTS.A;
+      // Streak >= 3 (PERFECT × N表示時) は派手なvariant、単発(+3表示)は D 固定。
+      // 視覚階層 (+3 < PERFECT × N) と音の階層を揃える。
+      const streak = (opts && opts.streak) || 0;
+      const key = streak >= 3 ? getPerfectSeKey() : 'D';
+      const fn = PERFECT_SE_VARIANTS[key] || PERFECT_SE_VARIANTS.I;
       fn();
     } else if (rating === 'great') {
       tone({ freq: 880,  type: 'triangle', dur: 0.14, gain: 0.14 });

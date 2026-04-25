@@ -63,7 +63,7 @@ export function handleTap(ev) {
   state.runningScore += Math.round(ratingPts * comboMult);
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');
 
-  Snd.hit(rating);
+  Snd.hit(rating, { streak: state.perfectStreak });
 
   els.pushBtn.classList.add('pressed');
   clearTimeout(els.pushBtn._rt);
