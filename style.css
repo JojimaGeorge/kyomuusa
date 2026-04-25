@@ -1764,7 +1764,7 @@ body {
     gap: 6px;
   }
   .retry-link {
-    top: 56px; right: 10px;
+    top: 56px; right: 32px;
     font-size: 10px;
     padding: 5px 10px;
     letter-spacing: 1.2px;
