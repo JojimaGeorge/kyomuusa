@@ -204,6 +204,10 @@ const SE_VARIANTS = [
   { key: 'C', label: 'C コインゲット', tag: 'coin' },
   { key: 'D', label: 'D メジャーチャイム', tag: 'chime' },
   { key: 'E', label: 'E パワーパンチ', tag: 'punch' },
+  { key: 'F', label: 'F チュイーン↑', tag: 'sweep' },
+  { key: 'G', label: 'G ドン!→キュイーン', tag: 'impact+sweep' },
+  { key: 'H', label: 'H 金属チュイーン', tag: 'metallic' },
+  { key: 'I', label: 'I スーパーヒット', tag: 'super hit' },
 ];
 function getCurrentSeKey() {
   try {

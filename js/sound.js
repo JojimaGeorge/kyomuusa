@@ -191,6 +191,23 @@ export const Snd = (() => {
     src.connect(f); f.connect(g); g.connect(master);
     src.start(t0); src.stop(t0 + dur + 0.02);
   };
+  // Pitch sweep: チュイーン↑系の上昇音作成用。fromFreq→toFreq を sweepDur 秒で
+  // 指数カーブ補間し、totalDur 秒で減衰。指数ランプは0より大きい必要があるので
+  // fromFreq/toFreq は両方>0で渡すこと。
+  const sweep = ({ fromFreq = 440, toFreq = 3520, type = 'sawtooth', sweepDur = 0.10, dur = 0.40, gain = 0.18, attack = 0.005, when = 0 }) => {
+    const c = ensure(); if (!c || muted) return;
+    const t0 = c.currentTime + when;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(fromFreq, t0);
+    o.frequency.exponentialRampToValueAtTime(toFreq, t0 + sweepDur);
+    o.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  };
 
   const tap = () => { resume(); tone({ freq: 880, type: 'square', dur: 0.05, gain: 0.06 }); };
 
@@ -229,6 +246,33 @@ export const Snd = (() => {
       tone({ freq: 523,  type: 'sawtooth', dur: 0.10, gain: 0.16, when: 0.00 });
       tone({ freq: 2093, type: 'square',   dur: 0.08, gain: 0.14, when: 0.00 });
       noise({ dur: 0.06, gain: 0.10, filterFreq: 3000, when: 0.00 });
+    },
+    // F: チュイーン↑（440→3520Hz急上昇sweep + 上で持続、王道パーフェクト感）
+    F: () => {
+      sweep({ fromFreq: 440,  toFreq: 3520, type: 'sawtooth', sweepDur: 0.10, dur: 0.45, gain: 0.20 });
+      tone({  freq: 5274,     type: 'triangle',                              dur: 0.30, gain: 0.10, when: 0.10 });
+      noise({ dur: 0.05, gain: 0.08, filterFreq: 6000 });
+    },
+    // G: ドン!→キュイーン↑（低音ドン + 上昇sweep + 高音tail、インパクト+チュイーン）
+    G: () => {
+      tone({  freq: 110,      type: 'square',                                dur: 0.08, gain: 0.22, when: 0.00 });
+      noise({ dur: 0.06, gain: 0.14, filterFreq: 800 });
+      sweep({ fromFreq: 880,  toFreq: 4400, type: 'sawtooth', sweepDur: 0.10, dur: 0.40, gain: 0.18, when: 0.02 });
+      tone({  freq: 4186,     type: 'sine',                                  dur: 0.25, gain: 0.10, when: 0.20 });
+    },
+    // H: 金属チュイーン（detune重ねでうなり感、刺さる金属系）
+    H: () => {
+      sweep({ fromFreq: 1320, toFreq: 2637, type: 'square',   sweepDur: 0.08, dur: 0.50, gain: 0.16 });
+      sweep({ fromFreq: 1325, toFreq: 2642, type: 'square',   sweepDur: 0.08, dur: 0.50, gain: 0.12, when: 0.005 });
+      tone({  freq: 5274,     type: 'sine',                                  dur: 0.30, gain: 0.10, when: 0.06 });
+    },
+    // I: スーパーヒット（ノイズ衝撃 + sweep + 鐘 + sparkle 多重ヒット）
+    I: () => {
+      noise({ dur: 0.04, gain: 0.14, filterFreq: 3000 });
+      sweep({ fromFreq: 600,  toFreq: 2400, type: 'sawtooth', sweepDur: 0.06, dur: 0.20, gain: 0.18 });
+      tone({  freq: 2637,     type: 'sine',                                  dur: 0.35, gain: 0.16, when: 0.03 });
+      tone({  freq: 5274,     type: 'triangle',                              dur: 0.25, gain: 0.12, when: 0.10 });
+      tone({  freq: 3136,     type: 'sine',                                  dur: 0.40, gain: 0.10, when: 0.06 });
     },
   };
   const getPerfectSeKey = () => {

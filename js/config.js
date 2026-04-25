@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v130';
+export const GAME_VERSION = 'v131';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
