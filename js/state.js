@@ -50,11 +50,17 @@ export const state = {
   gifPendingAdvance: false,
   activeChar: 'A',
 
-  // Mash phase
+  // Mash phase (gauge 99% → 30連打クリア)
   mashMode: false,
   mashCount: 0,
   mashTarget: 30,
   mashPending: false,
+
+  // Chart (譜面イベント駆動)
+  currentChart: null,       // CHART_MUSIC_* オブジェクト (曲選択時にセット)
+  firedEventIds: null,      // Set<number> — 発火済みイベントのインデックス (重複防止)
+  midsongMash: false,       // 曲中 mash-zone フェーズ中フラグ (クリア後 mashMode と排他)
+  midsongMashEndMs: 0,      // 曲中 mash 終了予定の audioMs
 
   // Indicator-only animation (during countdown)
   indicatorActive: false,

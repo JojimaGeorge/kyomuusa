@@ -486,3 +486,48 @@
 @media (prefers-reduced-motion: reduce) {
   .hologram-dots, .hologram-overlay { animation: none !important; }
 }
+
+/* ================== 譜面イベント: section 視覚変化 ==================
+   rhythm-indicator の枠色を section label ごとに切り替える。
+   JS が .section-chorus / .section-verse / .section-intro を add/remove する。
+   feedback_keyframe_fixed_percentage: @keyframes の % に CSS変数/calc 不可
+   → transition で色変化 + box-shadow 差し替えで対応。             */
+.rhythm-indicator {
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+/* intro: デフォルト黄色 (既存スタイル継承のため宣言不要だが明示) */
+.rhythm-indicator.section-intro {
+  border-color: #FFE600;
+  box-shadow: 0 0 16px rgba(255,230,0,0.55), inset 0 0 12px rgba(255,230,0,0.3);
+}
+/* verse: 水色 */
+.rhythm-indicator.section-verse {
+  border-color: #3EE8FF;
+  box-shadow: 0 0 16px rgba(62,232,255,0.55), inset 0 0 12px rgba(62,232,255,0.3);
+}
+/* chorus: ピンク (サビ突入演出) */
+.rhythm-indicator.section-chorus {
+  border-color: #FF4DF6;
+  box-shadow: 0 0 40px 6px rgba(255,77,246,0.85), inset 0 0 18px rgba(255,77,246,0.5);
+}
+
+/* ================== 曲中 mash-zone: midsong-mash ==================
+   gauge 99% 発火の mash-mode とは別。overlay は出さず、
+   rhythm-ring と push-btn だけパルスさせてサビ感を演出する。
+   feedback_keyframe_fixed_percentage: 固定 % で記述。           */
+.midsong-mash .rhythm-ring {
+  border-color: #FF4DF6;
+  box-shadow: inset 0 0 28px rgba(255,77,246,0.7), 0 0 18px rgba(255,77,246,0.5);
+  animation: midsong-ring-pulse 0.46s ease-in-out infinite alternate;
+}
+@keyframes midsong-ring-pulse {
+  0%   { box-shadow: inset 0 0 28px rgba(255,77,246,0.7), 0 0 18px rgba(255,77,246,0.5); }
+  100% { box-shadow: inset 0 0 48px rgba(255,77,246,0.95), 0 0 36px rgba(255,77,246,0.8); }
+}
+.midsong-mash .push-btn {
+  animation: midsong-btn-glow 0.46s ease-in-out infinite alternate;
+}
+@keyframes midsong-btn-glow {
+  0%   { box-shadow: inset 0 -10px 0 rgba(42,11,74,0.3), inset 0 8px 0 rgba(255,255,255,0.4), 0 0 0 4px #fff, 0 0 0 7px var(--deep), 0 0 0 10px #FF4DF6, 0 12px 0 var(--deep), 0 20px 36px rgba(255,77,246,0.6); }
+  100% { box-shadow: inset 0 -10px 0 rgba(42,11,74,0.3), inset 0 8px 0 rgba(255,255,255,0.4), 0 0 0 4px #fff, 0 0 0 7px var(--deep), 0 0 0 10px #FF4DF6, 0 12px 0 var(--deep), 0 20px 56px rgba(255,77,246,0.9); }
+}

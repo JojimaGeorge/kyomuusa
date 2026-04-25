@@ -21,3 +21,6 @@ __pycache__/
 
 # Local asset backups (pre-optimization originals, recovery only)
 assets/_backup/
+
+# Local tools (downloaded binaries, not for commit)
+tools/cloudflared.exe

@@ -131,13 +131,23 @@ export function updateIndicator(now) {
   els.rhythmIndicator.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(3)})`;
   els.rhythmIndicator.style.opacity = opacity.toFixed(2);
 
-  // Brighter glow near the beat (yellow always)
-  if (dtMin < TUNING.greatWindowMs) {
-    els.rhythmIndicator.style.boxShadow = '0 0 40px 6px rgba(255,230,0,0.95), inset 0 0 18px rgba(255,230,0,0.6)';
+  // Brighter glow near the beat.
+  // section-chorus / section-verse 中は CSS class が color/shadow を担うので
+  // inline style で上書きしない（section class なし = intro = 黄色デフォルト）。
+  const hasSection = els.rhythmIndicator.classList.contains('section-chorus') ||
+                     els.rhythmIndicator.classList.contains('section-verse');
+  if (!hasSection) {
+    if (dtMin < TUNING.greatWindowMs) {
+      els.rhythmIndicator.style.boxShadow = '0 0 40px 6px rgba(255,230,0,0.95), inset 0 0 18px rgba(255,230,0,0.6)';
+    } else {
+      els.rhythmIndicator.style.boxShadow = '0 0 16px rgba(255,230,0,0.55), inset 0 0 12px rgba(255,230,0,0.3)';
+    }
+    els.rhythmIndicator.style.borderColor = '#FFE600';
   } else {
-    els.rhythmIndicator.style.boxShadow = '0 0 16px rgba(255,230,0,0.55), inset 0 0 12px rgba(255,230,0,0.3)';
+    // section class 管理下では inline style をクリアして CSS に委譲
+    els.rhythmIndicator.style.boxShadow = '';
+    els.rhythmIndicator.style.borderColor = '';
   }
-  els.rhythmIndicator.style.borderColor = '#FFE600';
 }
 
 /* ---------- Tap judgment ----------

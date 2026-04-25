@@ -5,7 +5,7 @@
 import { TUNING, CLEAR_F_PLAY_MS, STAGE_GIFS } from './config.js';
 import { state } from './state.js';
 import { els, showScene, updateRectCache } from './dom.js';
-import { Snd } from './sound.js';
+import { Snd, getAudioClockMs } from './sound.js';
 import { scheduleNextBeat, updateIndicator } from './rhythm.js';
 import { renderGauge, setGifStage } from './stage.js';
 import { doFlash } from './effects.js';
@@ -20,17 +20,28 @@ export function loop() {
   els.timer.textContent = elapsedSec.toFixed(1) + 's';
   state.elapsedSec = elapsedSec;
 
-  // beat scheduling (paused during mash phase). scheduleNextBeat is called every
-  // frame — the legacy path's internal gate handles redundant calls; the
-  // audio-time path needs every-frame re-derivation so the gate isn't applied.
-  if (!state.mashMode) {
+  // 譜面イベントスキャン (audioMs ベース、重複防止 firedEventIds)
+  tickChartEvents();
+
+  // 曲中 mash-zone の自動終了チェック
+  if (state.midsongMash) {
+    const audioMs = getAudioClockMs();
+    if (audioMs >= state.midsongMashEndMs) {
+      finishMidsongMash();
+    }
+  }
+
+  // beat scheduling (paused during mash phase and midsong mash).
+  // scheduleNextBeat is called every frame — the legacy path's internal gate
+  // handles redundant calls; the audio-time path needs every-frame re-derivation.
+  if (!state.mashMode && !state.midsongMash) {
     scheduleNextBeat(now);
     updateIndicator(now);
   }
 
   // decay if no recent tap (tracked for final score penalty).
-  // Skipped in mash mode so the gauge stays frozen at 99.
-  if (!state.mashMode && now - state.lastTapAt > 300 && state.gauge > 0 && state.gauge < 100) {
+  // Skipped in mash mode and midsong mash so the gauge stays stable.
+  if (!state.mashMode && !state.midsongMash && now - state.lastTapAt > 300 && state.gauge > 0 && state.gauge < 100) {
     const decayAmt = TUNING.decayPerSec / 60;
     const actualDecay = Math.min(state.gauge, decayAmt);
     state.gauge = Math.max(0, state.gauge - decayAmt);
@@ -39,6 +50,71 @@ export function loop() {
   }
 
   state.rafId = requestAnimationFrame(loop);
+}
+
+/* ---------- 譜面イベントスキャン ----------
+   毎フレーム audioMs を取得し、未発火の events を逐次チェック。
+   firedEventIds (Set) で重複発火を防ぐ。
+   クリア後 mashMode / midsongMash 中は発火しない。 */
+function tickChartEvents() {
+  const chart = state.currentChart;
+  if (!chart || !chart.events) return;
+  if (!state.firedEventIds) return;
+  // クリア後 mash 中は曲中イベントを発火しない
+  if (state.mashMode || state.cleared) return;
+
+  const audioMs = getAudioClockMs();
+  const events = chart.events;
+  for (let i = 0; i < events.length; i++) {
+    if (state.firedEventIds.has(i)) continue;
+    const ev = events[i];
+    if (audioMs < ev.ms) continue;
+
+    // 発火済みにマーク
+    state.firedEventIds.add(i);
+
+    if (ev.type === 'section') {
+      onSectionChange(ev.label);
+    } else if (ev.type === 'mash') {
+      // 曲中 mash-zone: gauge99%未満・mashMode未発動・midsongMash未発動のときのみ
+      if (!state.midsongMash && !state.mashMode && !state.cleared && state.gauge < 99) {
+        const durMs = ev.dur || 2000;
+        state.midsongMash = true;
+        state.midsongMashEndMs = getAudioClockMs() + durMs;
+        if (els.scenes && els.scenes.game) els.scenes.game.classList.add('midsong-mash');
+        Snd.playSE('se2');
+        doFlash(0.35);
+      }
+    }
+  }
+}
+
+/* ---------- section イベント: 視覚変化 ----------
+   rhythm-ring の枠色を CSS class 切替で変える。
+   feedback_keyframe_fixed_percentage: @keyframes % に CSS変数不可 → class切替で対応。 */
+function onSectionChange(label) {
+  const ring = els.rhythmIndicator;
+  if (!ring) return;
+  // 既存の section class を全削除してから付け直す
+  ring.classList.remove('section-intro', 'section-verse', 'section-chorus');
+  if (label) ring.classList.add('section-' + label);
+
+  // chorus 突入時は追加フラッシュ演出
+  if (label === 'chorus') {
+    doFlash(0.25);
+  }
+}
+
+/* ---------- 曲中 mash 終了: 通常リズム判定に復帰 ---------- */
+export function finishMidsongMash() {
+  if (!state.midsongMash) return;
+  state.midsongMash = false;
+  state.midsongMashEndMs = 0;
+  // scene class を除去して通常判定モードへ戻す
+  if (els.scenes && els.scenes.game) {
+    els.scenes.game.classList.remove('midsong-mash');
+  }
+  // rhythm-ring 色を chorus のまま維持 (section-chorus class は残す)
 }
 
 /* ---------- Start / Clear ---------- */
@@ -56,7 +132,12 @@ export function startGame() {
   state.mashCount = 0;
   state.rhythmClearSec = 0;
   state.mashPending = false;
-  els.scenes.game.classList.remove('mash-mode');
+  // 譜面状態リセット
+  state.currentChart = null;
+  state.firedEventIds = new Set();
+  state.midsongMash = false;
+  state.midsongMashEndMs = 0;
+  els.scenes.game.classList.remove('mash-mode', 'midsong-mash');
   els.pushBtn.classList.remove('mash-pulse');
   if (els.mashOverlay) els.mashOverlay.classList.remove('show');
   if (els.mashCount) els.mashCount.textContent = '0';
@@ -78,6 +159,19 @@ export function startGame() {
   state.currentBgmMeta = track;
   state.currentTrackId = Snd.getTrackList().findIndex(t => t.src === track.src);
   TUNING.beatIntervalMs = Math.round((60000 / track.bpm) * 100) / 100;
+
+  // 譜面 dynamic import (非同期。BGM再生後に届けばよい — イントロ中に完了する)
+  if (track.chartId) {
+    import(`./charts/${track.chartId}.js`).then(mod => {
+      // エクスポート名: CHART_MUSIC_A / CHART_MUSIC_B / CHART_MUSIC_C
+      // 全エクスポートから trackId が一致するものを探す(堅牢版)
+      const chart = Object.values(mod).find(v => v && v.trackId === track.chartId);
+      if (chart) {
+        state.currentChart = chart;
+        state.firedEventIds = new Set();
+      }
+    }).catch(() => { /* 譜面なしでも動作継続 */ });
+  }
   document.documentElement.style.setProperty('--beat-duration', TUNING.beatIntervalMs + 'ms');
   if (els.nowPlaying) {
     els.nowPlaying.innerHTML = '<span class="np-note">♪</span><span class="np-title"></span>';
@@ -214,6 +308,12 @@ export function triggerClear() {
   if (state.cleared) return;
   state.cleared = true;
   state.running = false;
+  // 曲中 mash が残っていれば強制終了 (クリア後 mashMode と衝突させない)
+  if (state.midsongMash) {
+    state.midsongMash = false;
+    state.midsongMashEndMs = 0;
+    if (els.scenes && els.scenes.game) els.scenes.game.classList.remove('midsong-mash');
+  }
   state.clearTime = state.elapsedSec || ((performance.now() - state.startAt) / 1000);
   state.finalScore = computeFinalScore();
   // Fire-and-forget ranking submission so the network round-trip overlaps

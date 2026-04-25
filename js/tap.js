@@ -5,7 +5,7 @@
 import { TUNING } from './config.js';
 import { state } from './state.js';
 import { els, parity } from './dom.js';
-import { Snd } from './sound.js';
+import { Snd, getAudioClockMs } from './sound.js';
 import { judgeTap } from './rhythm.js';
 import { renderGauge } from './stage.js';
 import { showBadge, spawnParticles, spawnRipple, doFlash, doShake, spawnCombo } from './effects.js';
@@ -32,10 +32,24 @@ export function handleTap(ev) {
   state.taps++;
   els.tapCount.textContent = String(state.runningScore || 0).padStart(6, '0');
 
-  // Mash mode (99% → 30連打) bypasses rhythm judgment entirely.
+  // クリア後 mash (gauge 99% → 30連打) はリズム判定を完全バイパス
   if (state.mashMode) {
     if (state.mashCount >= state.mashTarget) return;
     doMashTap();
+    return;
+  }
+
+  // 曲中 mash-zone (サビ連打ゾーン): 軽いフィードバックのみ、ゲージ加算なし
+  // dur 経過後は gameloop.js の finishMidsongMash() が自動終了
+  if (state.midsongMash) {
+    Snd.hit('great');
+    spawnRipple();
+    spawnParticles(Math.round(3 + TUNING.effectIntensity * 0.4), '#FF4DF6');
+    if (TUNING.flashEnabled) doFlash(0.15);
+    if (TUNING.shakeEnabled) doShake(2);
+    els.pushBtn.classList.add('pressed');
+    clearTimeout(els.pushBtn._rt);
+    els.pushBtn._rt = setTimeout(() => els.pushBtn.classList.remove('pressed'), 80);
     return;
   }
 
@@ -110,7 +124,7 @@ export function handleTap(ev) {
 
 /* ---------- Mash phase (99% → 30連打) ---------- */
 export function enterMashMode() {
-  if (state.mashMode || state.cleared) return;
+  if (state.mashMode || state.midsongMash || state.cleared) return;
   state.mashMode = true;
   state.mashCount = 0;
   els.mashCount.textContent = '0';
@@ -179,4 +193,22 @@ export function finishMashMode() {
   if (TUNING.flashEnabled) doFlash(0.7);
   if (TUNING.shakeEnabled) doShake(7);
   setTimeout(triggerClear, 300);
+}
+
+/* ---------- 曲中 mash-zone (サビ連打ゾーン) ----------
+   gauge 99% 発火の enterMashMode とは別フェーズ。
+   - midsongMash フラグで管理し mashMode とは排他
+   - dur 経過後は gameloop.js の finishMidsongMash() が自動終了
+   - overlay は出さず、scene class 'midsong-mash' で視覚変化のみ */
+export function enterMidsongMash(durMs) {
+  // ガード: クリア後・gauge99%到達済み・既に midsong/クリア後 mash 中は無視
+  if (state.cleared || state.mashMode || state.midsongMash || state.gauge >= 99) return;
+  // getAudioClockMs は AudioContext.currentTime ベース (Web Audio API、sample精度)
+  // HTMLAudioElement.currentTime は使わない (feedback_audio_currentTime_mobile_drift)
+  state.midsongMash = true;
+  state.midsongMashEndMs = getAudioClockMs() + durMs;
+  els.scenes.game.classList.add('midsong-mash');
+  Snd.playSE('se2');
+  if (TUNING.flashEnabled) doFlash(0.35);
+  if (TUNING.shakeEnabled) doShake(4);
 }

@@ -27,9 +27,9 @@ export const Snd = (() => {
   // For constant "手前で反応" feel, shift offsetMs earlier (drift-free) OR lower
   // TUNING.beatLatencyMs. Do NOT touch bpm.
   const GAME_BGM_TRACKS = [
-    { src: './assets/musicA.mp3', bpm: 130.8, offsetMs: 487, title: 'Milky CasWay' },
-    { src: './assets/musicB.mp3', bpm: 131,   offsetMs: 468, title: 'Parallel CasNight' },
-    { src: './assets/musicC.mp3', bpm: 130.8, offsetMs: 862, title: 'Signals of CasLiver' },
+    { src: './assets/musicA.mp3', bpm: 130.8, offsetMs: 487, title: 'Milky CasWay',        chartId: 'musicA' },
+    { src: './assets/musicB.mp3', bpm: 131,   offsetMs: 468, title: 'Parallel CasNight',   chartId: 'musicB' },
+    { src: './assets/musicC.mp3', bpm: 130.8, offsetMs: 862, title: 'Signals of CasLiver', chartId: 'musicC' },
   ];
   const TITLE_BGM = './assets/music_title.mp3';
   const CTA_BGM = './assets/music_end.mp3';
