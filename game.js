@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v106';
+const GAME_VERSION = 'v107';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -150,7 +150,9 @@ const els = {
   shareToast: $('#cta-share-toast'),
   mashOverlay: $('#mash-overlay'),
   mashCount: $('#mash-count'),
+  ctaScoreboardWrap: $('#cta-scoreboard-wrap'),
   ctaRanking: $('#cta-ranking'),
+  ctaSlideDots: $('#cta-slide-dots'),
   rkList: $('#rk-list'),
   rkYou: $('#rk-you'),
   rkNewBadge: $('#rk-newbadge'),
@@ -1559,12 +1561,122 @@ function renderRankingPanel(r) {
 
   els.ctaRanking.classList.add('show');
   els.ctaRanking.setAttribute('aria-hidden', 'false');
+
+  // Once ranking is shown and name input isn't pending, allow the user to
+  // swipe back to the scoreboard. Wait for the slide-in transition (0.6s) to
+  // finish before showing the bounce hint.
+  if (!r.needsName) {
+    setTimeout(() => enableCtaSwipe(), 700);
+  }
 }
 
 function hideRankingPanel() {
   if (!els.ctaRanking) return;
   els.ctaRanking.classList.remove('show');
   els.ctaRanking.setAttribute('aria-hidden', 'true');
+}
+
+/* ---- CTA scoreboard ⇄ ranking carousel ---- */
+const CTA_SLIDE_RANKING = 'ranking';
+const CTA_SLIDE_SCOREBOARD = 'scoreboard';
+
+function updateCtaDots(slide) {
+  if (!els.ctaSlideDots) return;
+  els.ctaSlideDots.querySelectorAll('.cta-dot').forEach(dot => {
+    dot.classList.toggle('is-active', dot.dataset.slide === slide);
+  });
+}
+
+function setCtaSlide(slide) {
+  const wrap = els.ctaScoreboardWrap;
+  if (!wrap || !wrap.classList.contains('swipeable')) return;
+  if (slide !== CTA_SLIDE_RANKING && slide !== CTA_SLIDE_SCOREBOARD) return;
+  wrap.dataset.slide = slide;
+  updateCtaDots(slide);
+}
+
+let _ctaSwipeBound = false;
+function enableCtaSwipe() {
+  const wrap = els.ctaScoreboardWrap;
+  if (!wrap) return;
+  if (wrap.classList.contains('swipeable')) return; // idempotent
+  wrap.classList.add('swipeable');
+  wrap.dataset.slide = CTA_SLIDE_RANKING;
+  if (els.ctaSlideDots) {
+    els.ctaSlideDots.classList.add('show');
+    els.ctaSlideDots.setAttribute('aria-hidden', 'false');
+  }
+  updateCtaDots(CTA_SLIDE_RANKING);
+
+  // First-time hint: let scoreboard peek from the left, then retract.
+  setTimeout(() => {
+    wrap.classList.add('bounce-hint');
+    setTimeout(() => wrap.classList.remove('bounce-hint'), 980);
+  }, 350);
+
+  if (_ctaSwipeBound) return; // bind pointer handlers only once
+  _ctaSwipeBound = true;
+
+  let startX = 0, startY = 0, dragging = false, pointerActive = false;
+  const THRESHOLD = 40;
+
+  const onStart = (ev) => {
+    const t = ev.touches ? ev.touches[0] : ev;
+    startX = t.clientX; startY = t.clientY;
+    dragging = false; pointerActive = true;
+  };
+  const onMove = (ev) => {
+    if (!pointerActive) return;
+    const t = ev.touches ? ev.touches[0] : ev;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      dragging = true;
+    }
+    if (dragging && ev.cancelable) ev.preventDefault();
+  };
+  const onEnd = (ev) => {
+    if (!pointerActive) return;
+    pointerActive = false;
+    if (!dragging) return;
+    const t = ev.changedTouches ? ev.changedTouches[0] : ev;
+    const dx = (t.clientX || 0) - startX;
+    const current = wrap.dataset.slide;
+    if (dx < -THRESHOLD && current === CTA_SLIDE_RANKING) setCtaSlide(CTA_SLIDE_SCOREBOARD);
+    else if (dx > THRESHOLD && current === CTA_SLIDE_SCOREBOARD) setCtaSlide(CTA_SLIDE_RANKING);
+    dragging = false;
+  };
+  const onCancel = () => { pointerActive = false; dragging = false; };
+
+  wrap.addEventListener('touchstart', onStart, { passive: true });
+  wrap.addEventListener('touchmove', onMove, { passive: false });
+  wrap.addEventListener('touchend', onEnd);
+  wrap.addEventListener('touchcancel', onCancel);
+  wrap.addEventListener('mousedown', onStart);
+  wrap.addEventListener('mousemove', onMove);
+  wrap.addEventListener('mouseup', onEnd);
+  wrap.addEventListener('mouseleave', onCancel);
+
+  if (els.ctaSlideDots) {
+    els.ctaSlideDots.querySelectorAll('.cta-dot').forEach(dot => {
+      dot.addEventListener('click', (e) => {
+        e.preventDefault();
+        setCtaSlide(dot.dataset.slide);
+      });
+    });
+  }
+}
+
+function disableCtaSwipe() {
+  const wrap = els.ctaScoreboardWrap;
+  if (wrap) {
+    wrap.classList.remove('swipeable', 'bounce-hint');
+    delete wrap.dataset.slide;
+  }
+  if (els.ctaSlideDots) {
+    els.ctaSlideDots.classList.remove('show');
+    els.ctaSlideDots.setAttribute('aria-hidden', 'true');
+  }
 }
 
 function showNameInput(submissionId) {
@@ -1619,6 +1731,7 @@ async function submitName() {
     if (state.rankingResult) {
       state.rankingResult.top = data.top || state.rankingResult.top;
       state.rankingResult.you = data.you || state.rankingResult.you;
+      state.rankingResult.needsName = false; // ensures renderRankingPanel enables swipe
     }
     state.pendingNameSubmission = null;
     hideNameInput();
@@ -1998,6 +2111,7 @@ function bind() {
     state.pendingNameSubmission = null;
     hideRankingPanel();
     hideNameInput();
+    disableCtaSwipe();
     Snd.titleBgmStart();
     showScene('title');
     animateTitle();
@@ -2009,7 +2123,10 @@ function bind() {
   on(els.nameSkip, 'click', (e) => {
     e.preventDefault();
     state.pendingNameSubmission = null;
+    if (state.rankingResult) state.rankingResult.needsName = false;
     hideNameInput();
+    // User opted out of name entry — let them swipe between panels anyway.
+    setTimeout(() => enableCtaSwipe(), 250);
   });
   on(els.nameInput, 'keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); submitName(); }

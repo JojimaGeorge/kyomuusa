@@ -66,7 +66,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="./style.css?v=106"/>
+<link rel="stylesheet" href="./style.css?v=107"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -231,7 +231,7 @@
             <div class="cta-rank-badge" id="cta-rank-badge">?</div>
           </div>
 
-          <div class="cta-scoreboard-wrap">
+          <div class="cta-scoreboard-wrap" id="cta-scoreboard-wrap">
             <div class="cta-scoreboard" id="cta-scoreboard">
               <div class="sb-row" id="sb-row-score">
                 <span class="sb-label">SCORE</span>
@@ -264,6 +264,11 @@
               <div class="rk-you" id="rk-you"></div>
               <div class="rk-status" id="rk-status"></div>
             </div>
+          </div>
+
+          <div class="cta-slide-dots" id="cta-slide-dots" aria-hidden="true">
+            <button type="button" class="cta-dot" data-slide="scoreboard" aria-label="スコア詳細"></button>
+            <button type="button" class="cta-dot is-active" data-slide="ranking" aria-label="ランキング"></button>
           </div>
 
           <div class="cta-share" id="cta-share">
@@ -329,6 +334,6 @@
 
 <div class="tweaks" id="tweaks-panel"></div>
 
-<script src="./game.js?v=106"></script>
+<script src="./game.js?v=107"></script>
 </body>
 </html>

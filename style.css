@@ -1770,6 +1770,7 @@ body {
 .cta-scoreboard-wrap {
   position: relative;
   width: 100%;
+  overflow: hidden;
 }
 .cta-ranking {
   position: absolute;
@@ -1792,6 +1793,87 @@ body {
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
+}
+
+/* --- Swipeable carousel state: 2 slides controlled by data-slide --- */
+.cta-scoreboard-wrap.swipeable .cta-scoreboard {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  will-change: transform;
+}
+.cta-scoreboard-wrap.swipeable .cta-ranking {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  will-change: transform;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="ranking"] .cta-scoreboard {
+  transform: translateX(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="ranking"] .cta-ranking {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="scoreboard"] .cta-scoreboard {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="scoreboard"] .cta-ranking {
+  transform: translateX(110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- Bounce hint: ranking表示後にscoreboardを左からチラ見せして「スワイプできる」を示唆 --- */
+@keyframes ctaBounceHintRanking {
+  0%, 100% { transform: translateX(0); }
+  45%      { transform: translateX(18%); }
+  75%      { transform: translateX(0); }
+}
+@keyframes ctaBounceHintScoreboard {
+  0%, 100% { transform: translateX(-110%); opacity: 0; }
+  45%      { transform: translateX(-92%); opacity: 1; }
+  75%      { transform: translateX(-110%); opacity: 0; }
+}
+.cta-scoreboard-wrap.bounce-hint .cta-ranking {
+  animation: ctaBounceHintRanking 0.95s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cta-scoreboard-wrap.bounce-hint .cta-scoreboard {
+  animation: ctaBounceHintScoreboard 0.95s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Dot indicators --- */
+.cta-slide-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.cta-slide-dots.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(255, 230, 0, 0.55);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+  /* 角丸禁止ルールに準拠: 小さな正方形 */
+}
+.cta-dot:hover {
+  border-color: #FFE600;
+}
+.cta-dot.is-active {
+  background: #FFE600;
+  border-color: #FFE600;
 }
 .rk-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -2021,4 +2103,6 @@ body {
   .rank-name-sub { font-size: 10px; }
   .rank-name-input { font-size: 16px; padding: 8px 10px; letter-spacing: 3px; }
   .rank-name-submit, .rank-name-skip { font-size: 11px; padding: 8px 10px; letter-spacing: 1.4px; }
+  .cta-slide-dots { gap: 8px; margin-top: 6px; }
+  .cta-dot { width: 6px; height: 6px; border-width: 1px; }
 }
