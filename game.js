@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v109';
+const GAME_VERSION = 'v110';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1270,14 +1270,6 @@ function startGame() {
   if (els.nowPlaying) els.nowPlaying.innerHTML = '';
   Snd.resume();
 
-  // Warm up the splash video during gameplay. iOS Safari often ignores
-  // preload="auto" (especially on cellular / Low Power Mode), so we force a
-  // muted play → immediate pause. That makes iOS fetch, decode the first
-  // frame, and keep the buffer warm — by the time the user clicks YES the
-  // video is ready instantly instead of stalling behind a black #scene-video
-  // for up to 5s. Fire-and-forget; failures are caught by the onYes fallback.
-  preloadSplashVideo();
-
   // Pre-start BGM so the user hears the intro and feels the tempo before the
   // 3-2-1-GO! count lands. Safe now thanks to useAudioTimeSync: the Galaxy
   // v=88 failure mode (wall-clock cycleDuration inflating during cold-start
@@ -1992,50 +1984,37 @@ function showClearSequence() {
   }, 650);
 }
 
-// Muted play+pause trick: forces iOS Safari to decode the first frame and
-// keep the media buffered, so onYes() can resume playback instantly. Called
-// from startGame() so we get the full game duration (~15s+) as headroom.
-let _splashVideoWarmed = false;
-async function preloadSplashVideo() {
-  const v = els.splashVideo;
-  if (!v || _splashVideoWarmed) return;
-  if (v.readyState >= 3) { _splashVideoWarmed = true; return; } // HAVE_FUTURE_DATA
-  try {
-    v.muted = true;
-    v.playsInline = true;
-    try { v.load(); } catch (e) {}
-    const p = v.play();
-    if (p && typeof p.then === 'function') {
-      await p;
-      v.pause();
-      try { v.currentTime = 0; } catch (e) {}
-      _splashVideoWarmed = true;
-    }
-  } catch (e) {
-    // Autoplay rejected — onYes() still has its 700ms skip-to-CTA fallback.
-  }
-}
+// iOS (iPhone/iPad/iPod + iPadOS-as-Mac) rarely plays the splash video in time:
+// Safari refuses muted autoplay outside a direct gesture stack, preload=auto is
+// ignored on cellular/Low Power, and decode warmup competes with the game loop
+// on low-end devices (iPhone SE 3 slowed down when we tried). Skipping the
+// video scene on iOS is simpler and faster than fighting Safari.
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+               (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
 
 function onYes() {
   Snd.playSE('se3');
   const v = els.splashVideo;
-  try { v.currentTime = 0; } catch(e){}
 
-  let done = false;
   const goToCTA = () => {
-    if (done) return;
-    done = true;
     try { v.pause(); } catch(e){}
     showScene('cta');
     renderCTAScore();
     Snd.ctaBgmStart();
   };
 
-  // Defer showing scene-video until playback actually starts. iPhone Safari can
-  // take seconds to begin playback (preload=auto is only a hint), during which
-  // time the user would see scene-video's #000 background. If playback doesn't
-  // start within VIDEO_WAIT_MS we skip the video entirely and go to CTA so the
-  // user never stares at a black screen.
+  // iOS: skip scene-video entirely. The black #000 stall isn't worth it when
+  // the video probably won't play anyway.
+  if (IS_IOS) { goToCTA(); return; }
+
+  try { v.currentTime = 0; } catch(e){}
+
+  let done = false;
+  const finish = () => { if (done) return; done = true; goToCTA(); };
+
+  // Only show scene-video once playback actually starts. If playback doesn't
+  // kick in within VIDEO_WAIT_MS, skip to CTA so the user never stares at a
+  // black screen.
   const VIDEO_WAIT_MS = 700;
   let shown = false;
   const onPlaying = () => {
@@ -2043,24 +2022,23 @@ function onYes() {
     if (!shown && !done) { shown = true; showScene('video'); }
   };
   v.addEventListener('playing', onPlaying);
-  v.onended = goToCTA;
+  v.onended = finish;
 
   const p = v.play();
-  if (p && typeof p.catch === 'function') p.catch(goToCTA);
+  if (p && typeof p.catch === 'function') p.catch(finish);
 
-  // If playback hasn't kicked in quickly, skip the video.
   setTimeout(() => {
     if (!shown && !done) {
       v.removeEventListener('playing', onPlaying);
-      goToCTA();
+      finish();
     }
   }, VIDEO_WAIT_MS);
 
-  // Safety net: if the 'ended' event never fires (e.g. stuck decode), bail.
+  // Safety net: if 'ended' never fires (stuck decode), bail.
   setTimeout(() => {
     if (!done && els.scenes.video.classList.contains('active') &&
         (v.paused || v.ended || v.readyState < 2)) {
-      goToCTA();
+      finish();
     }
   }, 5000);
 }
