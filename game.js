@@ -2,7 +2,7 @@
    きょむうさ猛プッシュ — game.js (rev 2, rhythm tap)
    ============================================================ */
 
-const GAME_VERSION = 'v104';
+const GAME_VERSION = 'v105';
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally
@@ -1466,19 +1466,27 @@ function showFinishOverlay() {
    result is ready by the time the CTA panel needs it.
    ============================================================ */
 async function submitScore() {
-  const bd = state.scoreBreakdown || {};
+  // Mash phase (99%→30連打) bumps runningScore/maxCombo but leaves taps and
+  // perfect/great/good/miss counts untouched, which fails server-side checks
+  // (max_combo_inconsistent, hit_score_out_of_range). Fold mashCount into
+  // taps + greatCount for the payload — state itself is left alone so the
+  // on-screen scoreboard keeps showing the full runningScore.
+  const mashTaps = state.mashCount | 0;
+  const tapsTotal = (state.taps | 0) + mashTaps;
+  const HIT_SCORE_PER_TAP_CAP = 200; // must match SANITY.hitScorePerTap in game-api/src/index.js
+  const hitScore = Math.min(state.runningScore | 0, HIT_SCORE_PER_TAP_CAP * tapsTotal);
   const payload = {
     version: GAME_VERSION,
     trackId: (state.currentTrackId != null && state.currentTrackId >= 0) ? state.currentTrackId : null,
     stats: {
-      taps: state.taps | 0,
+      taps: tapsTotal,
       clearTime: Number(state.rhythmClearSec || state.clearTime || 0),
       maxCombo: state.maxCombo | 0,
       perfectCount: state.perfectCount | 0,
-      greatCount: state.greatCount | 0,
+      greatCount: (state.greatCount | 0) + mashTaps,
       goodCount: state.goodCount | 0,
       missCount: state.missCount | 0,
-      hitScore: state.runningScore | 0,
+      hitScore,
       decayTotal: Number(state.decayTotal || 0),
     },
   };
@@ -1488,7 +1496,13 @@ async function submitScore() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      try {
+        const err = await res.json();
+        console.warn('[ranking] submit rejected', res.status, err);
+      } catch { console.warn('[ranking] submit rejected', res.status); }
+      return null;
+    }
     return await res.json();
   } catch (e) {
     console.warn('[ranking] submit failed', e);
