@@ -1,0 +1,484 @@
+/* ============================================================
+   scene-game.css — Gameplay screen: room BG + hologram, HUD/gauge,
+   character stage, rhythm ring + push button, particles + flash,
+   beat badge, combo popups, in-scene chrome (now-playing, sound).
+   ============================================================ */
+
+#scene-game {
+  background: #9ED9CF; /* 画像ロード前のfallback＝壁の緑 */
+  overflow: hidden;
+}
+
+/* --- Pixel-art room background with rhythm-synced parts --- */
+.room-bg {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  height: 100%;
+  aspect-ratio: 1067 / 1707;
+  pointer-events: none;
+  z-index: 0;
+}
+.room-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+}
+
+.hologram-overlay {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(115deg,
+      rgba(255,255,255,0.10) 0 2px, transparent 2px 6px,
+      rgba(255,62,165,0.08) 6px 8px, transparent 8px 14px,
+      rgba(62,232,255,0.08) 14px 16px, transparent 16px 24px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: var(--holo-strength);
+  animation: holoshift 6s linear infinite;
+}
+@keyframes holoshift { 0% { background-position: 0 0; } 100% { background-position: 200px 0; } }
+.hologram-dots {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, #fff 1px, transparent 2px),
+    radial-gradient(circle, #FFE600 1.5px, transparent 3px);
+  background-size: 40px 40px, 70px 70px;
+  background-position: 0 0, 20px 20px;
+  opacity: calc(var(--holo-strength) * 0.5);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: twinkle 3s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  from { opacity: calc(var(--holo-strength) * 0.3); }
+  to   { opacity: calc(var(--holo-strength) * 0.7); }
+}
+
+/* --- Y2K diagonal-stripe gauge (top) --- */
+.hud {
+  position: absolute; top: 50px; left: 14px; right: 14px;
+  z-index: 10;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.gauge-label {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 6px;
+  font-family: 'Rubik Mono One', sans-serif;
+  color: var(--deep);
+  font-size: 9px; letter-spacing: 0.5px;
+  text-shadow: 2px 2px 0 #fff;
+  white-space: nowrap;
+}
+.gauge-label .label-txt {
+  flex: 0 0 auto;
+  font-family: 'Press Start 2P', 'Rubik Mono One', monospace;
+  font-size: 9px;
+  color: var(--deep);
+  text-shadow: 2px 2px 0 #fff;
+  letter-spacing: 1px;
+}
+.gauge-label .label-txt #tap-count {
+  font-family: 'Press Start 2P', 'Rubik Mono One', monospace;
+  color: #FF4DF6;
+  font-size: 13px;
+  margin-left: 4px;
+  -webkit-text-stroke: 0;
+}
+.gauge-label .gauge-num {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 16px;
+  color: var(--deep);
+  -webkit-text-stroke: 1px #fff;
+  flex: 1 1 auto; text-align: center;
+}
+.gauge-label .timer {
+  background: var(--deep);
+  color: #FFE600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  border: 2px solid #fff;
+  text-shadow: none;
+  flex: 0 0 auto;
+}
+
+.gauge {
+  position: relative;
+  height: 30px;
+  background: #fff;
+  border: 3px solid var(--deep);
+  border-radius: 6px;
+  overflow: hidden;
+  filter: drop-shadow(0 4px 0 var(--deep)) drop-shadow(0 8px 14px rgba(0,0,0,0.25));
+}
+/* Rectangular gauge (no clip pseudo-elements) */
+.gauge::before { content: none; }
+.gauge::after  { content: none; }
+.gauge-track {
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    #F79EFF 0 8px,
+    #fff 8px 18px
+  );
+}
+.gauge-fill {
+  position: absolute; inset: 0;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #FF4DF6 0%, #B14BFF 50%, #8D8FFF 100%);
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.gauge-fill-stripes {
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255,255,255,0.55) 0 6px,
+    transparent 6px 14px
+  );
+  pointer-events: none;
+}
+.gauge-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, transparent 50%, rgba(0,0,0,0.15) 100%);
+  mix-blend-mode: overlay;
+}
+.gauge-shimmer {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: 60px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+  animation: gaugeshim 1.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes gaugeshim {
+  from { transform: translateX(-80px); }
+  to   { transform: translateX(360px); }
+}
+.gauge-pulse {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: 6px;
+}
+/* Two identical keyframes let us restart without void offsetWidth (just toggle class) */
+@keyframes gaugePulse-a {
+  0% { box-shadow: 0 0 0 0 rgba(255,77,246,0.8); }
+  100% { box-shadow: 0 0 0 22px rgba(255,77,246,0); }
+}
+@keyframes gaugePulse-b {
+  0% { box-shadow: 0 0 0 0 rgba(255,77,246,0.8); }
+  100% { box-shadow: 0 0 0 22px rgba(255,77,246,0); }
+}
+.gauge-pulse.pulse-a { animation: gaugePulse-a 0.4s ease-out; }
+.gauge-pulse.pulse-b { animation: gaugePulse-b 0.4s ease-out; }
+
+/* Character — the star of the show, keep it big */
+.char-stage {
+  position: absolute;
+  left: 50%; top: 48%;
+  transform: translate(-50%, -50%);
+  width: 400px; height: 440px;
+  max-width: 96%;
+  z-index: 5;
+  pointer-events: none;
+}
+.char-img {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-width: 95%;
+  height: auto;
+  filter: drop-shadow(0 10px 14px rgba(42,11,74,0.3));
+  /* transition: opacity removed — caused ghost artifacts on GIF swap */
+}
+.char-idle { animation: breathe 3s ease-in-out infinite; }
+.char-happy { animation: bounce2 0.4s ease-in-out infinite; }
+/* GIF stages have built-in animation — disable CSS scale/bounce to avoid clash */
+.char-gif { animation: none; }
+@keyframes breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.03); }
+}
+@keyframes bounce2 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1.05); }
+  50% { transform: translate(-50%, -58%) scale(1.1); }
+}
+
+/* Combo popups */
+.combo-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+.combo-pop {
+  position: absolute;
+  font-family: 'Bagel Fat One', sans-serif;
+  color: #FFE600;
+  -webkit-text-stroke: 3px var(--deep);
+  paint-order: stroke;
+  text-shadow: 0 4px 0 var(--deep), 4px 0 0 #FF3EA5;
+  font-size: 38px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  white-space: nowrap;
+}
+.combo-pop.small { font-size: 26px; color: #fff; }
+.combo-pop.big { font-size: 48px; color: #FF4DF6; }
+.combo-pop.mega { font-size: 62px; color: #3EE8FF; text-shadow: 0 4px 0 var(--deep), 4px 0 0 #FFE600, -4px 0 0 #FF4DF6; }
+.combo-pop.perfect {
+  font-size: 56px;
+  color: #FFE600;
+  text-shadow: 0 4px 0 var(--deep), 3px 0 0 #FF4DF6, -3px 0 0 #8D8FFF;
+}
+
+/* Rhythm ring around push button */
+.rhythm-wrap {
+  position: relative;
+  display: grid; place-items: center;
+  width: 250px; height: 250px;
+}
+.rhythm-ring {
+  position: absolute; left: 50%; top: 50%;
+  width: 242px; height: 242px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px dashed rgba(255,255,255,0.7);
+  box-shadow: inset 0 0 20px rgba(255,77,246,0.4);
+  pointer-events: none;
+}
+/* shrinking indicator ring that converges on the beat */
+.rhythm-indicator {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 242px; height: 242px;
+  transform: translate(-50%, -50%) scale(2);
+  border-radius: 50%;
+  border: 5px solid #FFE600;
+  box-shadow: 0 0 20px rgba(255,230,0,0.6), inset 0 0 12px rgba(255,230,0,0.35);
+  opacity: 1;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* Beat tick marks on the outer ring */
+.rhythm-ticks {
+  position: absolute; left: 50%; top: 50%;
+  width: 250px; height: 250px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.rhythm-ticks i {
+  position: absolute;
+  left: 50%; top: 4px;
+  width: 4px; height: 12px;
+  background: rgba(255,255,255,0.65);
+  transform-origin: 50% 121px;
+  border-radius: 2px;
+}
+
+/* Push button — FF4DF6 → 8D8FFF gradient */
+.push-btn {
+  position: relative;
+  width: 156px; height: 156px;
+  border-radius: 50%;
+  border: none;
+  background: radial-gradient(circle at 35% 30%, #fff 0%, #FFB6FA 15%, #FF4DF6 55%, #B467FF 80%, #8D8FFF 100%);
+  cursor: pointer;
+  will-change: transform;
+  box-shadow:
+    inset 0 -10px 0 rgba(42,11,74,0.3),
+    inset 0 8px 0 rgba(255,255,255,0.4),
+    0 0 0 4px #fff,
+    0 0 0 7px var(--deep),
+    0 0 0 10px #FFE600,
+    0 12px 0 var(--deep),
+    0 20px 36px rgba(255,77,246,0.5);
+  font-family: 'Bagel Fat One', sans-serif;
+  color: #fff;
+  font-size: 32px;
+  letter-spacing: 2px;
+  text-shadow: 0 3px 0 var(--deep), 0 -1px 0 #FFB6FA;
+  -webkit-text-stroke: 2px var(--deep);
+  z-index: 3;
+  transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.08s;
+}
+.push-btn:active, .push-btn.pressed {
+  transform: scale(0.92) translateY(6px);
+  box-shadow:
+    inset 0 -6px 0 rgba(42,11,74,0.3),
+    inset 0 4px 0 rgba(255,255,255,0.4),
+    0 0 0 5px #fff,
+    0 0 0 9px var(--deep),
+    0 0 0 12px #FFE600,
+    0 6px 0 var(--deep),
+    0 10px 20px rgba(255,77,246,0.5);
+}
+
+.push-zone {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 40%;
+  display: grid; place-items: end center;
+  padding-bottom: 25px;
+  z-index: 6;
+}
+
+.ripple {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.8);
+  pointer-events: none;
+  animation: rippleExpand 0.6s ease-out forwards;
+  z-index: 2;
+}
+@keyframes rippleExpand {
+  0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; border-width: 6px; }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; border-width: 1px; }
+}
+
+/* Beat judgment badge */
+.beat-badge {
+  position: absolute;
+  top: 112px; left: 50%;
+  transform: translate(-50%, -10px) scale(0.8);
+  background: var(--deep);
+  color: #FFE600;
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 2px solid #fff;
+  letter-spacing: 1px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+.beat-badge.show   { animation: badgePop-a 0.8s ease-out forwards; }
+.beat-badge.show-b { animation: badgePop-b 0.8s ease-out forwards; }
+@keyframes badgePop-a {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.5); }
+  40% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+@keyframes badgePop-b {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.5); }
+  40% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
+}
+.beat-badge.perfect { background: #FFE600; color: #FF4DF6; }
+.beat-badge.great   { background: #FF4DF6; color: #FFE600; }
+.beat-badge.good    { background: #8D8FFF; color: #fff; }
+.beat-badge.miss    { background: #555; color: #fff; }
+
+/* particles */
+.particles { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
+.particle {
+  position: absolute; width: 14px; height: 14px;
+  pointer-events: none; will-change: transform, opacity;
+}
+
+/* white flash */
+.flash {
+  position: absolute; inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  mix-blend-mode: screen;
+}
+
+/* confetti canvas */
+#confetti-canvas {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* ================== NOW PLAYING (game scene only) ================== */
+.now-playing {
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 9999px;
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: calc(100% - 100px);
+  overflow: hidden;
+  line-height: 1;
+}
+.now-playing:empty { display: none; }
+.now-playing .np-note {
+  font-family: 'DotGothic16', 'Zen Maru Gothic', sans-serif;
+  font-size: 14px;
+  color: #FFE600;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+.now-playing .np-title {
+  font-family: 'Press Start 2P', 'Rubik Mono One', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+.now-playing .np-char {
+  display: inline-block;
+  color: #FFB361;
+  animation: np-slide-accent 3000ms step-end infinite;
+  animation-delay: calc(var(--ir, 0) * 150ms);
+}
+/* 3-char sliding accent window (right→left). Rightmost char (--ir=0) lights up
+   first, each step (150ms) the next char to its left joins for a 3-step overlap,
+   creating a connected bright patch that travels across the whole title. */
+@keyframes np-slide-accent {
+  0%   { color: #F8FFAC; }
+  15%  { color: #FFB361; }
+  100% { color: #FFB361; }
+}
+
+/* ================== SOUND TOGGLE ================== */
+.sound-toggle {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 60;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--deep);
+  background: #fff;
+  color: var(--deep);
+  display: grid; place-items: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--deep), 0 6px 12px rgba(0,0,0,0.25);
+  transition: transform 0.08s, box-shadow 0.08s;
+  padding: 0;
+}
+.sound-toggle:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--deep), 0 3px 6px rgba(0,0,0,0.25);
+}
+.sound-toggle svg { display: block; width: 18px; height: 18px; }
+.sound-toggle .icon-muted { display: none; }
+.sound-toggle.muted { background: #C39BFF; color: #fff; }
+.sound-toggle.muted .icon-sound { display: none; }
+.sound-toggle.muted .icon-muted { display: block; }
+/* CTA scene has its own retry-link at top-right; hide sound toggle there */
+.sound-toggle.hide-on-cta { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hologram-dots, .hologram-overlay { animation: none !important; }
+}

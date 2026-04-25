@@ -1,0 +1,336 @@
+/* ============================================================
+   ranking.css — CTA scoreboard ⇄ ranking carousel, ranking
+   panel rows (top5 + YOU), name input modal, dot indicators.
+   Specificity layered to override .cta-ranking.show with the
+   swipeable[data-slide] selector when the carousel is active.
+   ============================================================ */
+
+.cta-scoreboard-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.cta-ranking {
+  position: absolute;
+  inset: 0;
+  background: #1a0624;
+  border: 2px solid #FFE600;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transform: translateX(110%);
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+  pointer-events: none;
+  font-family: 'DotGothic16', 'VT323', monospace;
+  color: #fff;
+  z-index: 2;
+  /* When top5外 + YOU row overflows on short screens (iPhone SE), allow internal
+     vertical scroll so the user can reach their own rank. Horizontal swipe to
+     scoreboard still works because the swipe handler only preventDefaults when
+     dx dominates dy (see enableCtaSwipe). */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.cta-ranking.show {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* --- Swipeable carousel state: 2 slides controlled by data-slide ---
+   Specificity: .cta-scoreboard-wrap.swipeable[data-slide=...] .cta-ranking
+   = (0,3,1) which beats .cta-ranking.show = (0,2,0). Order matters:
+   keep this block AFTER .cta-ranking.show. */
+.cta-scoreboard-wrap.swipeable .cta-scoreboard {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  will-change: transform;
+}
+.cta-scoreboard-wrap.swipeable .cta-ranking {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  will-change: transform;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="ranking"] .cta-scoreboard {
+  transform: translateX(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="ranking"] .cta-ranking {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="scoreboard"] .cta-scoreboard {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-scoreboard-wrap.swipeable[data-slide="scoreboard"] .cta-ranking {
+  transform: translateX(110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- Bounce hint: ranking表示後にscoreboardを左からチラ見せして「スワイプできる」を示唆 --- */
+@keyframes ctaBounceHintRanking {
+  0%, 100% { transform: translateX(0); }
+  45%      { transform: translateX(18%); }
+  75%      { transform: translateX(0); }
+}
+@keyframes ctaBounceHintScoreboard {
+  0%, 100% { transform: translateX(-110%); opacity: 0; }
+  45%      { transform: translateX(-92%); opacity: 1; }
+  75%      { transform: translateX(-110%); opacity: 0; }
+}
+.cta-scoreboard-wrap.bounce-hint .cta-ranking {
+  animation: ctaBounceHintRanking 0.95s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cta-scoreboard-wrap.bounce-hint .cta-scoreboard {
+  animation: ctaBounceHintScoreboard 0.95s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Dot indicators (角丸禁止: 8x8 squares) --- */
+.cta-slide-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.cta-slide-dots.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cta-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(255, 230, 0, 0.55);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+  /* 角丸禁止ルール準拠: 小さな正方形 */
+}
+.cta-dot:hover {
+  border-color: #FFE600;
+}
+.cta-dot.is-active {
+  background: #FFE600;
+  border-color: #FFE600;
+}
+
+/* --- Ranking rows --- */
+.rk-header {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,230,0,0.4);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+.rk-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #FFE600;
+}
+.rk-badge {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: #2A0B4A;
+  background: #FFE600;
+  padding: 2px 8px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.rk-badge.show {
+  opacity: 1;
+  transform: scale(1);
+  animation: rkBadgeBlink 1.2s ease-in-out infinite;
+}
+@keyframes rkBadgeBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.rk-list {
+  display: flex; flex-direction: column;
+  gap: 1px;
+}
+.rk-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  border-bottom: 1px dashed rgba(255,255,255,0.15);
+}
+.rk-row:last-child { border-bottom: none; }
+.rk-pos {
+  color: #FFE600;
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 11px;
+  text-align: right;
+  min-width: 22px;
+}
+.rk-name {
+  color: rgba(255,255,255,0.92);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rk-score {
+  color: #FFE600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-family: 'DotGothic16', 'VT323', monospace;
+}
+.rk-row.rk-you-row {
+  background: rgba(255,77,246,0.2);
+  border: 1px solid #FF4DF6;
+  padding: 3px 4px;
+  animation: rkYouGlow 1.4s ease-in-out infinite;
+}
+@keyframes rkYouGlow {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,77,246,0.8); }
+  50%      { box-shadow: 0 0 12px rgba(255,77,246,0.7); }
+}
+.rk-row.rk-you-row .rk-pos { color: #FF4DF6; }
+.rk-row.rk-you-row .rk-name { color: #fff; font-weight: 700; }
+.rk-row.rk-you-row .rk-score { color: #FFE600; }
+.rk-you {
+  display: none;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  margin-top: 3px;
+  border-top: 1px solid rgba(255,230,0,0.4);
+  font-size: 12px;
+}
+.rk-you.show { display: grid; }
+.rk-you .rk-pos {
+  color: #FF4DF6;
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 11px;
+  text-align: right;
+}
+.rk-you .rk-name {
+  color: #FF4DF6;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.rk-you .rk-score {
+  color: #FFE600;
+  font-size: 14px;
+  font-family: 'DotGothic16', 'VT323', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.rk-status {
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  letter-spacing: 1px;
+}
+.rk-status:empty { display: none; }
+
+/* --- Name input modal (TOP5 ランクイン時) --- */
+.rank-name-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 5, 36, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 20;
+  padding: 16px;
+}
+.rank-name-modal.show { display: flex; }
+.rank-name-card {
+  width: 100%;
+  max-width: 300px;
+  background: rgba(30, 10, 50, 0.95);
+  border: 2px solid #FFE600;
+  padding: 18px 16px 14px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+}
+.rank-name-title {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  color: #FFE600;
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-align: center;
+}
+.rank-name-sub {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.rank-name-input {
+  width: 100%;
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 20px;
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,230,0,0.6);
+  padding: 10px 12px;
+  letter-spacing: 4px;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+}
+.rank-name-input:focus {
+  border-color: #FFE600;
+  background: rgba(255,255,255,0.15);
+}
+.rank-name-actions {
+  display: flex; gap: 10px;
+  justify-content: center;
+}
+.rank-name-submit,
+.rank-name-skip {
+  flex: 1;
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 13px;
+  letter-spacing: 2px;
+  padding: 10px 14px;
+  border: 2px solid #FFE600;
+  background: rgba(255,230,0,0.9);
+  color: #2A0B4A;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+.rank-name-submit:hover { background: #FFE600; }
+.rank-name-submit:active { transform: scale(0.96); }
+.rank-name-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rank-name-skip {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255,255,255,0.5);
+}
+.rank-name-skip:hover { background: rgba(255,255,255,0.1); }
+.rank-name-skip:active { transform: scale(0.96); }
+.rank-name-error {
+  min-height: 14px;
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 11px;
+  color: #FF4DF6;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.rank-name-error:empty { display: none; }

@@ -1,0 +1,102 @@
+/* ============================================================
+   clear-video.css — Clear scene (window pop + typewriter +
+   YES/NO buttons) and the splash video scene.
+   ============================================================ */
+
+/* ================== CLEAR ================== */
+#scene-clear {
+  background: url('../assets/clearBG.webp') center/cover no-repeat, #C397FF;
+  display: flex; flex-direction: column; align-items: center;
+  overflow: hidden;
+}
+.clear-window {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.5);
+  width: 86%;
+  max-width: 340px;
+  opacity: 0;
+  z-index: 3;
+  pointer-events: none; /* image */
+}
+.clear-window-img { width: 100%; display: block; }
+.clear-window.show { animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+@keyframes popIn {
+  0%  { opacity: 0; transform: translateX(-50%) scale(0.2) rotate(-8deg); }
+  60% { opacity: 1; transform: translateX(-50%) scale(1.05) rotate(3deg); }
+  100%{ opacity: 1; transform: translateX(-50%) scale(1) rotate(0); }
+}
+.clear-text {
+  position: absolute;
+  left: 54%;
+  transform: translateX(-50%);
+  top: calc(22% + 96px);
+  width: 56%;
+  max-width: 220px;
+  font-family: 'DotGothic16', 'VT323', monospace;
+  color: var(--deep);
+  font-size: 19px;
+  line-height: 2.0;
+  letter-spacing: 1px;
+  z-index: 4;
+  text-align: left;
+  font-weight: 700;
+}
+.clear-text .typed { white-space: pre-wrap; }
+.clear-text .caret {
+  display: inline-block;
+  width: 10px; height: 22px;
+  background: var(--deep);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: caretBlink 0.7s step-end infinite;
+}
+
+.clear-actions {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  top: calc(22% + 300px);
+  display: flex; gap: 18px;
+  z-index: 5;
+  opacity: 0;
+}
+.clear-actions.show { animation: fadeUp 0.4s ease-out forwards; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.yn-btn {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 22px;
+  padding: 10px 26px;
+  border: 3px solid var(--deep);
+  border-radius: 100px;
+  cursor: pointer;
+  letter-spacing: 2px;
+  box-shadow: 0 5px 0 var(--deep), 0 10px 18px rgba(0,0,0,0.25);
+  transition: transform 0.08s;
+  -webkit-text-stroke: 1px var(--deep);
+  color: var(--deep);
+}
+.yn-btn.yes { background: var(--yes); }
+.yn-btn.no  { background: var(--no); }
+.yn-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--deep); }
+.yn-btn.shake { animation: shakeNo 0.5s ease-in-out; }
+@keyframes shakeNo {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px) rotate(-4deg); }
+  40% { transform: translateX(8px) rotate(4deg); }
+  60% { transform: translateX(-6px) rotate(-2deg); }
+  80% { transform: translateX(6px) rotate(2deg); }
+}
+
+/* ================== VIDEO ================== */
+#scene-video {
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+#splash-video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}

@@ -1,0 +1,289 @@
+/* ============================================================
+   overlays.css — Mid-gameplay overlays: countdown (READY?/GO!!),
+   FINISH!! banner with rhythm-decor hide rules, mash-mode (99% →
+   30連打) overlay, counter, instruction.
+   ============================================================ */
+
+/* ================== COUNTDOWN ================== */
+.countdown-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(42,11,74,0.55) 0%, rgba(20,0,38,0.75) 100%);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.countdown-overlay.show { opacity: 1; }
+.countdown-num {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 72px;
+  color: #FFE600;
+  -webkit-text-stroke: 5px var(--deep);
+  paint-order: stroke;
+  text-shadow:
+    0 8px 0 var(--deep),
+    0 14px 28px rgba(0,0,0,0.55),
+    0 0 36px rgba(255,230,0,0.6);
+  line-height: 1;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  max-width: 90%;
+  text-align: center;
+}
+.countdown-num.pop { animation: countPop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.countdown-num.go {
+  font-size: 72px;
+  color: #FF4DF6;
+  letter-spacing: 4px;
+  text-shadow:
+    0 8px 0 var(--deep),
+    0 14px 28px rgba(0,0,0,0.55),
+    0 0 44px rgba(255,77,246,0.8);
+}
+@keyframes countPop {
+  0%   { opacity: 0; transform: scale(2.6) rotate(-8deg); }
+  25%  { opacity: 1; transform: scale(1) rotate(0); }
+  75%  { opacity: 1; transform: scale(1.06) rotate(0); }
+  100% { opacity: 0; transform: scale(0.7) rotate(0); }
+}
+
+/* ================== FINISH!! OVERLAY ================== */
+.finish-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 40%;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0;
+  background: transparent;
+}
+.finish-overlay.show { animation: finishFade 1.4s ease-out forwards; }
+.finish-text {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 56px;
+  color: #FFE600;
+  -webkit-text-stroke: 5px var(--deep);
+  paint-order: stroke;
+  text-shadow:
+    0 8px 0 var(--deep),
+    4px 0 0 #FF4DF6,
+    -4px 0 0 #3EE8FF,
+    0 14px 32px rgba(0,0,0,0.6);
+  letter-spacing: 2px;
+  transform: scale(0.3) rotate(-8deg);
+  white-space: nowrap;
+  max-width: 94%;
+}
+/* Hide rhythm rings / ticks / indicator during finish */
+#scene-game.finishing .rhythm-ring,
+#scene-game.finishing .rhythm-indicator,
+#scene-game.finishing .rhythm-ticks,
+#scene-game.finishing .beat-badge,
+#scene-game.finishing .push-btn {
+  opacity: 0 !important;
+  visibility: hidden;
+  transition: opacity 0.2s ease-out;
+}
+.finish-overlay.show .finish-text {
+  animation: finishText 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes finishFade {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes finishText {
+  0%   { transform: scale(0.3) rotate(-30deg); }
+  25%  { transform: scale(1.4) rotate(-14deg); }
+  45%  { transform: scale(1.05) rotate(-10deg); }
+  60%  { transform: scale(1.15) rotate(-9deg); }
+  80%  { transform: scale(1.08) rotate(-8deg); }
+  100% { transform: scale(1.18) rotate(-8deg); }
+}
+
+/* ================== MASH MODE (99% → 30連打) ================== */
+.mash-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding-bottom: 36%;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+.mash-overlay.show { opacity: 1; }
+
+/* Radial flash/vignette behind mash UI */
+.mash-bg-pulse {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(255,230,0,0.35) 0%, rgba(255,77,246,0.22) 32%, rgba(42,11,74,0.0) 62%),
+    repeating-conic-gradient(from 0deg at 50% 36%, rgba(255,230,0,0.15) 0deg 6deg, transparent 6deg 14deg);
+  mix-blend-mode: screen;
+  animation: mash-bg-spin 2.4s linear infinite, mash-bg-flash 0.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes mash-bg-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes mash-bg-flash {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+
+/* "猛プッシュ" — pop in, then shake forever */
+.mash-title-wrap {
+  display: block;
+  width: 86%;
+  max-width: 336px;
+  margin: 0 auto 18px;
+  align-self: center;
+  transform: scale(0) rotate(-6deg);
+  will-change: transform;
+}
+.mash-overlay.show .mash-title-wrap {
+  animation: mash-pop-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes mash-pop-in {
+  0%   { transform: scale(0.2) rotate(-10deg); }
+  60%  { transform: scale(1.18) rotate(3deg); }
+  80%  { transform: scale(0.94) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.mash-title {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter:
+    drop-shadow(0 6px 0 rgba(42,11,74,0.55))
+    drop-shadow(0 0 24px rgba(255,230,0,0.75))
+    drop-shadow(0 0 40px rgba(255,77,246,0.55));
+  animation: mash-shake 0.1s linear infinite;
+  will-change: transform;
+}
+@keyframes mash-shake {
+  0%   { transform: translate(-2px,  1px) rotate(-1.2deg); }
+  10%  { transform: translate( 2px, -1px) rotate( 1.0deg); }
+  20%  { transform: translate(-1px,  2px) rotate(-1.0deg); }
+  30%  { transform: translate( 2px,  1px) rotate( 1.4deg); }
+  40%  { transform: translate(-2px, -1px) rotate(-1.0deg); }
+  50%  { transform: translate( 1px,  2px) rotate( 1.0deg); }
+  60%  { transform: translate(-2px, -2px) rotate(-1.4deg); }
+  70%  { transform: translate( 2px,  1px) rotate( 1.0deg); }
+  80%  { transform: translate(-1px, -1px) rotate(-1.0deg); }
+  90%  { transform: translate( 1px,  2px) rotate( 1.3deg); }
+  100% { transform: translate(-2px,  1px) rotate(-1.2deg); }
+}
+
+/* Mash counter (N/30) */
+.mash-counter {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 54px;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #FFE600;
+  -webkit-text-stroke: 4px var(--deep);
+  paint-order: stroke;
+  text-shadow:
+    0 6px 0 var(--deep),
+    3px 0 0 #FF4DF6,
+    -3px 0 0 #3EE8FF,
+    0 0 28px rgba(255,230,0,0.85);
+  display: flex; align-items: baseline; gap: 6px;
+  transform: scale(0);
+  opacity: 0;
+}
+.mash-overlay.show .mash-counter {
+  animation: mash-counter-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s forwards;
+}
+@keyframes mash-counter-in {
+  0%   { opacity: 0; transform: scale(0.2); }
+  60%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.mash-counter .mash-slash,
+.mash-counter .mash-target {
+  font-size: 32px;
+  color: #fff;
+  -webkit-text-stroke: 3px var(--deep);
+  text-shadow: 0 4px 0 var(--deep);
+}
+#mash-count {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  transition: none;
+}
+#mash-count.pop   { animation: mash-count-pop-a 0.22s cubic-bezier(0.34, 1.56, 0.64, 1); }
+#mash-count.pop-b { animation: mash-count-pop-b 0.22s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes mash-count-pop-a {
+  0%   { transform: scale(1); color: #FFE600; }
+  50%  { transform: scale(1.45) rotate(-6deg); color: #FF4DF6; }
+  100% { transform: scale(1) rotate(0); color: #FFE600; }
+}
+@keyframes mash-count-pop-b {
+  0%   { transform: scale(1); color: #FFE600; }
+  50%  { transform: scale(1.45) rotate(-6deg); color: #FF4DF6; }
+  100% { transform: scale(1) rotate(0); color: #FFE600; }
+}
+
+/* 連打せよ！！ */
+.mash-instruction {
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 22px;
+  color: #fff;
+  -webkit-text-stroke: 2px var(--deep);
+  paint-order: stroke;
+  text-shadow: 0 3px 0 var(--deep), 0 0 18px #FF4DF6;
+  letter-spacing: 3px;
+  margin-top: 10px;
+  opacity: 0;
+}
+.mash-overlay.show .mash-instruction {
+  animation: mash-instr-in 0.4s ease-out 0.55s forwards,
+             mash-instr-blink 0.55s steps(2) 0.95s infinite;
+}
+@keyframes mash-instr-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mash-instr-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.75; transform: scale(1.06); }
+}
+
+/* Push button auto-pulse (entice mashing) */
+.push-btn.mash-pulse {
+  animation: push-mash 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+@keyframes push-mash {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(0.9) translateY(6px); }
+}
+.push-btn.mash-pulse:active,
+.push-btn.mash-pulse.pressed {
+  animation: none;
+  transform: scale(0.88) translateY(8px);
+}
+
+/* Hide rhythm decor during mash mode */
+#scene-game.mash-mode .rhythm-ring,
+#scene-game.mash-mode .rhythm-indicator,
+#scene-game.mash-mode .rhythm-ticks,
+#scene-game.mash-mode .beat-badge {
+  opacity: 0 !important;
+  transition: opacity 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mash-bg-pulse,
+  .mash-title,
+  .push-btn.mash-pulse,
+  .mash-instruction { animation: none !important; }
+}

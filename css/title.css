@@ -1,0 +1,248 @@
+/* ============================================================
+   title.css — Title scene: words pop, kyomu, GAME START button,
+   tagline, Powered by, song-picker (debug 5-tap modal), stickers.
+   ============================================================ */
+
+#scene-title {
+  background: url('../assets/titleBG.webp') center/cover no-repeat, #E8B4FF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 36px 0 44px;
+}
+.title-stage {
+  position: static;
+  inset: auto;
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: 0;
+  flex: 0 0 auto;
+}
+.title-words {
+  position: relative;
+  width: 100%;
+  margin-top: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  z-index: 3;
+}
+.title-word {
+  opacity: 1;
+  filter: drop-shadow(0 8px 0 rgba(42,11,74,0.35));
+}
+.title-word-1 { width: 76%; max-width: 310px; }
+.title-word-2 { width: 66%; max-width: 268px; }
+
+.title-kyomu {
+  margin-top: 24px;
+  width: 56%;
+  max-width: 240px;
+  height: auto;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* ---------- Stickers (poyon-in float) ---------- */
+.sticker {
+  position: absolute;
+  opacity: 1;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+  z-index: 2;
+}
+.sticker.poyon-float { animation: floatStick 4s ease-in-out 0.7s infinite; }
+.sticker-02 { top: 10%; right: 4%; width: 78px; }   /* smileys x3 */
+.sticker-03 { top: 13%; left: 4%; width: 74px; }    /* star */
+.sticker-05 { bottom: 32%; left: 2%; width: 86px; } /* rainbow smile */
+.sticker-06 { bottom: 38%; right: 2%; width: 74px; } /* chevron */
+
+@keyframes poyon {
+  0%  { opacity: 0; transform: scale(0.2) rotate(var(--r, 0deg)); }
+  55% { opacity: 1; transform: scale(1.15) rotate(var(--r, 0deg)); }
+  75% { opacity: 1; transform: scale(0.92) rotate(var(--r, 0deg)); }
+  100% { opacity: 1; transform: scale(1) rotate(var(--r, 0deg)); }
+}
+.poyon { animation: poyon 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 1; }
+
+.sticker.poyon-float { animation: poyon 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatStick 4s ease-in-out 0.7s infinite; opacity: 1; }
+@keyframes floatStick {
+  0%, 100% { transform: scale(1) rotate(var(--r, 0deg)) translateY(0); }
+  50% { transform: scale(1.04) rotate(calc(var(--r, 0deg) + 4deg)) translateY(-8px); }
+}
+
+/* ---------- GAME START button ---------- */
+.start-btn {
+  position: static;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #fff 0%, #FFE600 100%);
+  color: var(--deep);
+  font-family: 'Bagel Fat One', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  padding: 16px 40px;
+  border: 4px solid var(--deep);
+  border-radius: 100px;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px #FF3EA5, 0 0 0 6px #fff, 0 0 0 9px #3EE8FF, 0 8px 0 var(--deep), 0 16px 32px rgba(0,0,0,0.4);
+  animation: blink 1.1s ease-in-out infinite;
+  z-index: 5;
+}
+.start-btn:active {
+  transform: translateY(4px) scale(0.98);
+  box-shadow: 0 0 0 3px #FF3EA5, 0 0 0 6px #fff, 0 0 0 9px #3EE8FF, 0 4px 0 var(--deep), 0 8px 16px rgba(0,0,0,0.4);
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+/* ---------- Tagline (typewriter speech bubble) ---------- */
+.title-tagline {
+  position: static;
+  margin: 0 auto;
+  font-family: 'DotGothic16', 'Courier New', monospace;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 1.2px;
+  line-height: 1.8;
+  text-align: left;
+  padding: 12px 22px;
+  width: 290px;
+  min-height: 76px;
+  border: 2px solid rgba(255,255,255,0.75);
+  background: rgba(30, 10, 50, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 8px 22px rgba(30, 10, 50, 0.35);
+  z-index: 5;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+.title-tagline .typed { white-space: pre-wrap; }
+.title-tagline .tagline-caret {
+  display: inline-block;
+  width: 8px; height: 16px;
+  background: #fff;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: caretBlink 0.7s step-end infinite;
+}
+
+.powered-by {
+  position: static;
+  margin: 8px auto 0;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #1a0a2e;
+  opacity: 0.7;
+  z-index: 5;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.title-hint {
+  position: absolute;
+  bottom: 24px; left: 50%; transform: translateX(-50%);
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 3px;
+  font-family: 'Rubik Mono One', sans-serif;
+  opacity: 0.85;
+  text-shadow: 0 2px 8px rgba(42,11,74,0.6);
+  z-index: 5;
+}
+
+/* ===== DEBUG: Song picker (5連タップで表示) ===== */
+.song-picker {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 4, 28, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  font-family: 'DotGothic16', 'Press Start 2P', monospace;
+}
+.song-picker.show { display: flex; animation: songPickerFade 0.18s ease-out; }
+@keyframes songPickerFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.song-picker-card {
+  width: 78%;
+  max-width: 280px;
+  padding: 18px 16px 14px;
+  background: #1a0a2e;
+  border: 3px solid #FFE600;
+  box-shadow: 0 0 0 3px #1a0a2e, 0 0 0 6px #FF3EA5, 0 12px 32px rgba(0,0,0,0.5);
+  color: #fff;
+  text-align: center;
+}
+.song-picker-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #FFE600;
+  margin-bottom: 14px;
+  text-shadow: 0 2px 0 #1a0a2e;
+}
+.song-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.song-picker-btn {
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  color: #fff;
+  background: #2A0B4A;
+  border: 2px solid #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.song-picker-btn .sp-label { white-space: nowrap; }
+.song-picker-btn .sp-tag {
+  font-size: 9px;
+  letter-spacing: 1px;
+  opacity: 0.6;
+}
+.song-picker-btn:hover,
+.song-picker-btn:active {
+  background: #FFE600;
+  color: #1a0a2e;
+}
+.song-picker-btn.selected {
+  background: #FFE600;
+  color: #1a0a2e;
+}
+.song-picker-btn.selected .sp-tag { opacity: 0.8; }
+.song-picker-version {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 10px;
+  text-align: center;
+}
+.song-picker-close {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #fff;
+  background: transparent;
+  border: 2px solid rgba(255,255,255,0.5);
+  padding: 8px 18px;
+  cursor: pointer;
+}
+.song-picker-close:hover { border-color: #fff; }

@@ -1,0 +1,352 @@
+/* ============================================================
+   cta.css — Final screen: rank badge, scoreboard reveal,
+   share buttons, info text, magenta download card, retry link.
+   Ranking panel + name modal + carousel are in ranking.css.
+   ============================================================ */
+
+#scene-cta {
+  background: url('../assets/CTA_BG.webp') center/cover no-repeat, linear-gradient(180deg, #8A3E7E 0%, #5B4A9E 100%);
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+.cta-top {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 14px 20px 14px;
+  position: relative;
+  z-index: 2;
+}
+
+/* --- unified info box (score + headline + sub) --- */
+.cta-info {
+  width: 100%;
+  max-width: 340px;
+  padding: 14px 16px;
+  border: 2px solid rgba(255,255,255,0.75);
+  background: rgba(30, 10, 50, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 8px 22px rgba(30, 10, 50, 0.35);
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: center;
+}
+.cta-score {
+  width: 100%;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Press Start 2P', 'Rubik Mono One', 'Courier New', monospace;
+  letter-spacing: 1.2px;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+}
+.cta-score .sc-row { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cta-score .sc-label { color: rgba(255,255,255,0.85); font-size: 9px; letter-spacing: 1.5px; }
+.cta-score .sc-val { color: #FFE600; font-size: 18px; letter-spacing: 1.5px; }
+.cta-divider {
+  width: 100%; height: 1px;
+  background: rgba(255,255,255,0.3);
+}
+.cta-headline {
+  font-family: 'DotGothic16', 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+  color: #fff;
+  font-size: 20px;
+  text-align: center;
+  line-height: 1.5;
+  letter-spacing: 2px;
+  -webkit-text-stroke: 0;
+}
+.cta-sub {
+  font-family: 'DotGothic16', 'Noto Sans JP', sans-serif;
+  color: rgba(255,255,255,0.9);
+  font-size: 11px;
+  font-weight: 400;
+  text-align: center;
+  line-height: 1.85;
+  letter-spacing: 0.6px;
+  -webkit-text-stroke: 0;
+}
+
+/* --- download card (Figma autolayout spec) --- */
+.cta-download-card {
+  flex: 0 0 auto;
+  background: #b41f94;
+  padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 25px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 -12px 30px rgba(30, 10, 50, 0.35);
+}
+.cta-brand-row {
+  display: flex; flex-direction: row; align-items: center; justify-content: center;
+  gap: 33px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+.cta-brand-row:hover { transform: translateY(-1px); opacity: 0.9; }
+.cta-brand-row:active { transform: translateY(1px); }
+.cta-applogo {
+  width: 53px; height: 53px;
+  border-radius: 16px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+.cta-brand-text {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.cta-brand-tag {
+  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  font-weight: 700;
+  color: #fff;
+  font-size: 12px;
+  line-height: 28px;
+  text-align: center;
+  white-space: nowrap;
+}
+.cta-brand-logo {
+  width: 168px;
+  height: auto;
+  display: block;
+}
+
+.store-row {
+  display: flex; flex-direction: row; align-items: flex-start; justify-content: center;
+  gap: 12px;
+  padding-top: 4px;
+  width: 100%;
+}
+.store-btn {
+  display: block;
+  flex: 0 0 auto;
+  height: 44px;
+  transition: transform 0.1s;
+  filter:
+    drop-shadow(0 4px 10px rgba(0,0,0,0.25))
+    drop-shadow(0 0 6px rgba(255, 214, 234, 0.45))
+    drop-shadow(0 0 14px rgba(255, 214, 234, 0.28));
+  animation: store-btn-glow 2.8s ease-in-out infinite;
+}
+@keyframes store-btn-glow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 4px 10px rgba(0,0,0,0.25))
+      drop-shadow(0 0 5px rgba(255, 214, 234, 0.38))
+      drop-shadow(0 0 12px rgba(255, 214, 234, 0.22));
+  }
+  50% {
+    filter:
+      drop-shadow(0 4px 10px rgba(0,0,0,0.25))
+      drop-shadow(0 0 8px rgba(255, 214, 234, 0.55))
+      drop-shadow(0 0 18px rgba(255, 214, 234, 0.34));
+  }
+}
+.store-btn-appstore { width: 119.34px; }
+.store-btn-googleplay { width: 147.94px; }
+.store-btn:active { transform: scale(0.96); }
+.store-btn img {
+  width: 100%; height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* --- retry (anchored to top-right of YOUR RANK frame) --- */
+.retry-link {
+  position: absolute;
+  top: 0; right: 0;
+  color: #fff;
+  font-family: 'DotGothic16', 'Rubik Mono One', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  background: rgba(0,0,0,0.55);
+  padding: 6px 12px;
+  border: 2px solid rgba(255,255,255,0.7);
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.retry-link:active { transform: scale(0.96); }
+
+/* ================== CTA SCOREBOARD / RANK / SHARE ================== */
+.cta-rank-wrap {
+  position: relative;
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+}
+.cta-rank-label {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  letter-spacing: 3px;
+}
+.cta-rank-badge {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 56px;
+  line-height: 1;
+  color: #FFE600;
+  letter-spacing: 0;
+  transform: scale(0.2) rotate(-8deg);
+  opacity: 0;
+  padding: 2px 18px;
+  background: rgba(255,255,255,0.08);
+  border: 3px solid rgba(255,230,0,0.8);
+}
+.cta-rank-badge.show {
+  animation: rankPop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.cta-rank-badge.rank-S { color: #FFE600; border-color: #FFE600; }
+.cta-rank-badge.rank-A { color: #FF4DF6; border-color: #FF4DF6; }
+.cta-rank-badge.rank-B { color: #3EE8FF; border-color: #3EE8FF; }
+.cta-rank-badge.rank-C { color: #B5F0FF; border-color: #B5F0FF; }
+.cta-rank-badge.rank-D { color: #ffffff; border-color: #ffffff; }
+@keyframes rankPop {
+  0%   { transform: scale(0.2) rotate(-18deg); opacity: 0; }
+  55%  { transform: scale(1.25) rotate(6deg); opacity: 1; }
+  80%  { transform: scale(0.95) rotate(-2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.cta-scoreboard {
+  width: 100%;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.45);
+  padding: 10px 14px;
+  display: flex; flex-direction: column;
+  gap: 2px;
+}
+.sb-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 3px 2px;
+  opacity: 0;
+  transform: translateX(-12px);
+  font-family: 'DotGothic16', 'VT323', monospace;
+  color: #fff;
+}
+.sb-row.show {
+  animation: sbRowIn 0.4s ease-out forwards;
+}
+@keyframes sbRowIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.sb-label {
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+}
+.sb-val {
+  font-family: 'DotGothic16', 'VT323', monospace;
+  font-size: 20px;
+  color: #FFE600;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: right;
+  -webkit-text-stroke: 0;
+}
+.sb-divider {
+  height: 2px;
+  background: rgba(255,255,255,0.45);
+  margin: 3px 0 1px;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.sb-divider.show {
+  animation: sbDividerIn 0.35s ease-out forwards;
+}
+@keyframes sbDividerIn {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.sb-total-row {
+  padding: 4px 2px 2px;
+  align-items: center;
+}
+.sb-total-row .sb-label {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 15px;
+  color: #fff;
+  letter-spacing: 1.8px;
+}
+.sb-total-row .sb-val {
+  font-size: 28px;
+  color: #FF4DF6;
+  min-width: 120px;
+}
+.sb-val.rolling {
+  animation: sbRollPulse 0.12s ease-in-out infinite alternate;
+}
+.sb-val.pop {
+  animation: sbValPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes sbRollPulse {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-2px); }
+}
+@keyframes sbValPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* SNS share */
+.cta-share {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.cta-share-label {
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  color: rgba(255,255,255,0.9);
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+.cta-share-btns {
+  display: flex; gap: 10px;
+}
+.share-btn {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border: 2px solid #FFE600;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s;
+  padding: 0;
+}
+.share-btn:hover { background: rgba(255,255,255,0.22); }
+.share-btn:active { transform: translateY(2px); }
+.share-btn.share-x { background: #000; border-color: #FFE600; }
+.share-btn.share-line { background: #06C755; border-color: #FFE600; }
+.share-btn.share-threads { background: #000; border-color: #FFE600; }
+.cta-share-toast {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translate(-50%, 4px);
+  background: #FFE600;
+  color: #2A0B4A;
+  font-family: 'DotGothic16', 'Noto Sans JP', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 5px 12px;
+  border: 2px solid #2A0B4A;
+  box-shadow: 0 3px 0 #2A0B4A;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+.cta-share-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-btn { animation: none; }
+}

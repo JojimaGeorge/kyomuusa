@@ -1,0 +1,153 @@
+/* ============================================================
+   base.css — Reset, design tokens, body background, phone frame,
+   scene container basics, dev tweaks panel.
+   Loaded FIRST so all subsequent stylesheets can override.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik+Mono+One&family=DotGothic16&family=M+PLUS+Rounded+1c:wght@800;900&family=VT323&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --btn-pink: #FF4DF6;
+  --btn-blue: #8D8FFF;
+  --neon-purple: #B14BFF;
+  --shock-pink: #FF3EA5;
+  --turq: #3EE8FF;
+  --sun: #FFE600;
+  --deep: #2A0B4A;
+  --cream: #FFF5FC;
+  --yes: #FFC247;
+  --no: #C39BFF;
+  --phone-w: 390px;
+  --phone-h: 844px;
+  --holo-strength: 0.7;
+}
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: 'M PLUS Rounded 1c', system-ui, sans-serif;
+  color: var(--deep);
+  touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+}
+
+body {
+  background: linear-gradient(180deg, #C0ADFF 0%, #D4B0FE 50%, #E3B3FE 100%);
+  display: grid; place-items: center;
+}
+
+/* =========== Cosmic pixel-dot BG (PC outside-phone area) =========== */
+.stage-bg-shimmer {
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' shape-rendering='crispEdges'><rect x='60' y='44' width='2' height='2' fill='white' opacity='.9'/><rect x='203' y='161' width='2' height='2' fill='white' opacity='.9'/><rect x='122' y='218' width='2' height='2' fill='white' opacity='.8'/><rect x='31' y='138' width='2' height='2' fill='white' opacity='.75'/><rect x='237' y='81' width='2' height='2' fill='white' opacity='.85'/><rect x='164' y='23' width='2' height='2' fill='white' opacity='.7'/><rect x='88' y='185' width='2' height='2' fill='white' opacity='.8'/></svg>");
+  background-size: 260px 260px;
+  background-repeat: repeat;
+  image-rendering: pixelated;
+  animation: cosmic-drift-far 90s linear infinite;
+  z-index: 0; pointer-events: none;
+}
+.stage-bg-shimmer::before,
+.stage-bg-shimmer::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.stage-bg-shimmer::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360' shape-rendering='crispEdges'><rect x='65' y='97' width='3' height='3' fill='white' opacity='.95'/><rect x='295' y='245' width='3' height='3' fill='%23FFE4FC' opacity='.9'/><rect x='198' y='50' width='3' height='3' fill='white' opacity='.9'/><rect x='137' y='317' width='3' height='3' fill='%23E6D2FF' opacity='.9'/><rect x='259' y='137' width='3' height='3' fill='white' opacity='.85'/></svg>");
+  background-size: 360px 360px;
+  background-repeat: repeat;
+  animation: cosmic-drift-mid 55s linear infinite, cosmic-twinkle 4.2s ease-in-out infinite;
+}
+.stage-bg-shimmer::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520' shape-rendering='crispEdges'><rect x='146' y='114' width='4' height='4' fill='white'/><rect x='437' y='426' width='4' height='4' fill='%23FFD2F8' opacity='.95'/><rect x='83' y='385' width='3' height='3' fill='%23F0DEFF' opacity='.95'/><rect x='333' y='239' width='3' height='3' fill='%23FFF0FF' opacity='.9'/></svg>");
+  background-size: 520px 520px;
+  background-repeat: repeat;
+  animation: cosmic-drift-near 38s linear infinite, cosmic-twinkle-fast 2.6s ease-in-out infinite;
+}
+
+@keyframes cosmic-drift-far {
+  from { background-position: 0 0; }
+  to   { background-position: 0 -520px; }
+}
+@keyframes cosmic-drift-mid {
+  from { background-position: 0 0; }
+  to   { background-position: 40px -720px; }
+}
+@keyframes cosmic-drift-near {
+  from { background-position: 0 0; }
+  to   { background-position: -60px -1040px; }
+}
+@keyframes cosmic-twinkle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@keyframes cosmic-twinkle-fast {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+/* =========== Mobile viewport (no iPhone chrome) =========== */
+.phone {
+  position: relative;
+  width: var(--phone-w); height: var(--phone-h);
+  max-height: 100vh; max-height: 100svh;
+  max-width: 100vw;
+  aspect-ratio: 390 / 844;
+  background: #0a0014;
+  box-shadow: 0 16px 48px rgba(90,50,160,0.22);
+  overflow: hidden;
+  z-index: 2;
+}
+.screen { position: absolute; inset: 0; overflow: hidden; }
+
+.scene {
+  position: absolute; inset: 0;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.scene.active { opacity: 1; pointer-events: auto; }
+
+/* =========== Caret blink (shared by tagline + clear-text) =========== */
+@keyframes caretBlink { 50% { opacity: 0; } }
+
+/* =========== Tweaks panel (dev/edit-mode bridge) =========== */
+.tweaks {
+  position: fixed;
+  right: 18px; bottom: 18px;
+  z-index: 999;
+  background: rgba(20, 5, 36, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 16px 18px;
+  color: #fff;
+  font-family: 'Rubik Mono One', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  width: 260px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  display: none;
+}
+.tweaks.open { display: block; }
+.tweaks h3 { font-size: 13px; margin-bottom: 12px; color: #FFE600; letter-spacing: 2px; }
+.tweak-row { margin-bottom: 12px; }
+.tweak-row label { display: flex; justify-content: space-between; margin-bottom: 6px; color: #fff; font-size: 10px; }
+.tweak-row label .val { color: #FF4DF6; }
+.tweak-row input[type="range"] { width: 100%; accent-color: #FF4DF6; }
+.tweak-row .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tweak-row .chip {
+  background: rgba(255,255,255,0.08); color: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 6px 10px; border-radius: 100px;
+  font-family: inherit; font-size: 10px; cursor: pointer;
+}
+.tweak-row .chip.active { background: #FF4DF6; border-color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-bg-shimmer,
+  .stage-bg-shimmer::before,
+  .stage-bg-shimmer::after { animation: none !important; }
+}
