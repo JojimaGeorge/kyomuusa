@@ -128,16 +128,24 @@ body {
 /* ================== TITLE ================== */
 #scene-title {
   background: url('./assets/titleBG.webp') center/cover no-repeat, #E8B4FF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 36px 0 44px;
 }
 .title-stage {
-  position: absolute; inset: 0;
+  position: static;
+  inset: auto;
+  width: 100%;
   display: flex; flex-direction: column; align-items: center;
-  padding-top: 40px;
+  padding-top: 0;
+  flex: 0 0 auto;
 }
 .title-words {
   position: relative;
   width: 100%;
-  margin-top: 80px;
+  margin-top: 0;
   display: flex; flex-direction: column; align-items: center;
   gap: 14px;
   z-index: 3;
@@ -150,7 +158,7 @@ body {
 .title-word-2 { width: 66%; max-width: 268px; }
 
 .title-kyomu {
-  margin-top: 40px;
+  margin-top: 24px;
   width: 48%;
   max-width: 200px;
   height: auto;
@@ -161,44 +169,20 @@ body {
 
 /* iPhone SE / 短い viewport 対応（667h前後） */
 @media (max-height: 750px) {
-  #scene-title {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 0 18px;
-  }
-  .title-stage {
-    position: static;
-    inset: auto;
-    padding-top: 0;
-    width: 100%;
-    flex: 0 0 auto;
-  }
-  .title-words { margin-top: 0; gap: 6px; }
+  #scene-title { padding: 16px 0 16px; }
+  .title-words { gap: 6px; }
   .title-word-1 { max-width: 220px; }
   .title-word-2 { max-width: 186px; }
   .title-kyomu { margin-top: 8px; width: 38%; max-width: 150px; }
 
   .title-tagline {
-    position: static;
-    bottom: auto;
-    left: auto;
-    transform: none;
-    margin: 0 auto;
     font-size: 12px;
     width: 284px;
     padding: 10px 16px;
-    min-height: 3.6em;
     line-height: 1.6;
     letter-spacing: 1px;
   }
   .start-btn {
-    position: static;
-    bottom: auto;
-    left: auto;
-    transform: none;
-    margin: 0 auto;
     font-size: 13px;
     padding: 7px 22px;
     letter-spacing: 1.5px;
@@ -210,10 +194,6 @@ body {
     box-shadow: 0 0 0 2px #FF3EA5, 0 0 0 3px #fff, 0 0 0 5px #3EE8FF, 0 2px 0 var(--deep), 0 5px 12px rgba(0,0,0,0.4);
   }
   .powered-by {
-    position: static;
-    bottom: auto;
-    left: auto;
-    transform: none;
     margin: 4px auto 0;
     font-size: 9px;
     letter-spacing: 1.2px;
@@ -247,8 +227,8 @@ body {
 }
 
 .start-btn {
-  position: absolute;
-  bottom: 80px; left: 50%; transform: translateX(-50%);
+  position: static;
+  margin: 0 auto;
   background: linear-gradient(180deg, #fff 0%, #FFE600 100%);
   color: var(--deep);
   font-family: 'Bagel Fat One', sans-serif;
@@ -263,10 +243,8 @@ body {
   z-index: 5;
 }
 .title-tagline {
-  position: absolute;
-  left: 50%;
-  bottom: 220px;
-  transform: translateX(-50%);
+  position: static;
+  margin: 0 auto;
   font-family: 'DotGothic16', 'Courier New', monospace;
   color: #ffffff;
   font-size: 13px;
@@ -296,13 +274,12 @@ body {
   animation: caretBlink 0.7s step-end infinite;
 }
 .start-btn:active {
-  transform: translateX(-50%) translateY(4px) scale(0.98);
+  transform: translateY(4px) scale(0.98);
   box-shadow: 0 0 0 3px #FF3EA5, 0 0 0 6px #fff, 0 0 0 9px #3EE8FF, 0 4px 0 var(--deep), 0 8px 16px rgba(0,0,0,0.4);
 }
 .powered-by {
-  position: absolute;
-  left: 50%; bottom: 42px;
-  transform: translateX(-50%);
+  position: static;
+  margin: 8px auto 0;
   font-family: 'DotGothic16', 'Press Start 2P', monospace;
   font-size: 10px;
   letter-spacing: 2px;
@@ -429,12 +406,11 @@ body {
 /* --- Pixel-art room background with rhythm-synced parts --- */
 .room-bg {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: 0;
-  width: 100%;
+  transform: translateX(-50%);
+  height: 100%;
   aspect-ratio: 1067 / 1707;
-  max-height: 100%;
   pointer-events: none;
   z-index: 0;
 }
