@@ -78,6 +78,8 @@ export function setupDom() {
     shareToast: $('#cta-share-toast'),
     mashOverlay: $('#mash-overlay'),
     mashCount: $('#mash-count'),
+    mashTimerFill: $('#mash-timer-fill'),
+    mashTimerNum: $('#mash-timer-num'),
     ctaScoreboardWrap: $('#cta-scoreboard-wrap'),
     ctaRanking: $('#cta-ranking'),
     ctaSlideDots: $('#cta-slide-dots'),

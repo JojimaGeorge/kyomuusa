@@ -1,5 +1,5 @@
 /* ============================================================
-   tap.js — handleTap dispatcher, mash mode (99% → 30連打).
+   tap.js — handleTap dispatcher, mash mode (99% → 5秒間連打).
    ============================================================ */
 
 import { TUNING } from './config.js';
@@ -23,9 +23,8 @@ export function handleTap(ev) {
   // already playing, so safe to call every tap.
   if (Snd && Snd.ensurePlaying) Snd.ensurePlaying();
 
-  // Ignore overshoot taps after the 30-mash finisher so the gauge can't rebound to 99.
-  // mashCount sticky guard also catches the gap right after finishMashMode flips mashMode=false.
-  if (state.cleared || state.gauge >= 100 || state.mashCount >= state.mashTarget) return;
+  // Ignore overshoot taps after the mash finisher so the gauge can't rebound to 99.
+  if (state.cleared || state.gauge >= 100) return;
 
   const now = performance.now();
   if (now - state.lastTapAt < 60) return; // debounce
@@ -33,15 +32,14 @@ export function handleTap(ev) {
   state.taps++;
   els.tapCount.textContent = String(state.runningScore || 0).padStart(6, '0');
 
-  // Mash mode (99% → 30連打) bypasses rhythm judgment entirely.
+  // Mash mode (99% → 5秒間連打) bypasses rhythm judgment entirely.
   if (state.mashMode) {
-    if (state.mashCount >= state.mashTarget) return;
     doMashTap();
     return;
   }
 
   const { rating, gain } = judgeTap(now);
-  // Cap at 99 — the final 1% is earned by clearing the 30-tap mash phase.
+  // Cap at 99 — the final 1% is awarded when the 5s mash window ends.
   state.gauge = Math.min(99, state.gauge + gain);
 
   // combo logic: perfect/great/good build combo, miss resets
@@ -120,12 +118,18 @@ export function handleTap(ev) {
   }
 }
 
-/* ---------- Mash phase (99% → 30連打) ---------- */
+/* ---------- Mash phase (99% → 5秒間連打) ----------
+   v=152 redesign: fixed-window mode. Each mash tap = +300pt total
+   (greatCount attribution +150 + score.js mashTimeBonus +150). No tap cap.
+   Gauge stays parked at 99 throughout the window, snaps to 100 at finish.
+   maxCombo is intentionally NOT extended by mash taps — combo bonus is locked
+   to the rhythm-phase peak so scoring per mash tap stays exactly +300. */
 export function enterMashMode() {
   if (state.mashMode || state.cleared) return;
   exitFever();
   state.mashMode = true;
   state.mashCount = 0;
+  state.mashStartAt = performance.now();
   els.mashCount.textContent = '0';
   els.scenes.game.classList.add('mash-mode');
   els.pushBtn.classList.add('mash-pulse');
@@ -134,24 +138,44 @@ export function enterMashMode() {
   Snd.playSE('se2');
   if (TUNING.flashEnabled) doFlash(0.55);
   if (TUNING.shakeEnabled) doShake(6);
+
+  // Auto-finish after the fixed window. The timer is the sole exit path —
+  // doMashTap no longer triggers finish on tap count. Stored on state so
+  // startGame can clear it on retry.
+  if (state.mashEndTimer) clearTimeout(state.mashEndTimer);
+  state.mashEndTimer = setTimeout(() => {
+    state.mashEndTimer = null;
+    finishMashMode();
+  }, state.mashWindowMs);
+
+  // rAF-driven timer bar + countdown text. Stops itself when mashMode flips off.
+  if (els.mashTimerFill) els.mashTimerFill.style.transform = 'scaleX(1)';
+  if (els.mashTimerNum) els.mashTimerNum.textContent = (state.mashWindowMs / 1000).toFixed(1);
+  const tickTimer = () => {
+    if (!state.mashMode) return;
+    const elapsed = performance.now() - state.mashStartAt;
+    const remaining = Math.max(0, state.mashWindowMs - elapsed);
+    const t = remaining / state.mashWindowMs;
+    if (els.mashTimerFill) els.mashTimerFill.style.transform = 'scaleX(' + t.toFixed(4) + ')';
+    if (els.mashTimerNum) els.mashTimerNum.textContent = (remaining / 1000).toFixed(1);
+    if (remaining > 0) requestAnimationFrame(tickTimer);
+  };
+  requestAnimationFrame(tickTimer);
 }
 
 export function doMashTap() {
-  // 最終防衛線: ガードをすり抜けた経路もここで遮断
-  if (state.mashCount >= state.mashTarget || state.cleared) return;
+  if (state.cleared || !state.mashMode) return;
   state.mashCount++;
   els.mashCount.textContent = String(state.mashCount);
   parity.mashPop = !parity.mashPop;
   els.mashCount.className = parity.mashPop ? 'pop' : 'pop-b';
 
-  // Gauge creeps 99 → 100 proportionally to mash progress so the bar visibly fills
-  state.gauge = Math.min(100, 99 + (state.mashCount / state.mashTarget));
-  renderGauge();
-
-  // Running score bonus per mash tap (contributes to final score)
-  state.runningScore = (state.runningScore || 0) + 200;
+  // Gauge stays at 99 during the window (B案). Finish flips it to 100.
+  // Running score: +300 per tap mirrors the server-side total
+  // (greatCount +150 attribution + mashTimeBonus +150).
+  state.runningScore = (state.runningScore || 0) + 300;
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');
-  state.maxCombo = Math.max(state.maxCombo || 0, state.mashCount);
+  // NOTE: maxCombo intentionally NOT bumped — see header comment.
 
   // Feedback per tap: particles + ripple + flash + shake (count halved to reduce jank)
   Snd.hit('great');
@@ -168,20 +192,18 @@ export function doMashTap() {
   clearTimeout(els.pushBtn._rt);
   els.pushBtn._rt = setTimeout(() => els.pushBtn.classList.remove('pressed'), 80);
 
-  // Milestone combo popups (every 10 taps, plus the finisher)
-  if (state.mashCount === 10 || state.mashCount === 20) {
-    spawnCombo(`${state.mashCount} / ${state.mashTarget}`, 'mega');
-  } else if (state.mashCount >= state.mashTarget) {
-    spawnCombo('BREAKTHROUGH!!', 'perfect');
-    finishMashMode();
-    return;
+  // Milestone combo popups every 10 taps, +300 confetti every 3rd tap.
+  if (state.mashCount > 0 && state.mashCount % 10 === 0) {
+    spawnCombo(`${state.mashCount} TAPS!!`, 'mega');
   } else if (state.mashCount % 3 === 0) {
-    spawnCombo('+200', 'small');
+    spawnCombo('+300', 'small');
   }
 }
 
 export function finishMashMode() {
+  if (!state.mashMode) return;
   state.mashMode = false;
+  if (state.mashEndTimer) { clearTimeout(state.mashEndTimer); state.mashEndTimer = null; }
   // handleTap のstate.runningチェックで、triggerClear待ち300ms中のオーバーシュートを遮断
   state.running = false;
   els.pushBtn.classList.remove('mash-pulse');
@@ -189,6 +211,7 @@ export function finishMashMode() {
   els.scenes.game.classList.remove('mash-mode');
   state.gauge = 100;
   renderGauge();
+  spawnCombo('BREAKTHROUGH!!', 'perfect');
   if (TUNING.flashEnabled) doFlash(0.7);
   if (TUNING.shakeEnabled) doShake(7);
   setTimeout(triggerClear, 300);

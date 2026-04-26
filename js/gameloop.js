@@ -76,6 +76,8 @@ export function startGame() {
   state.lastTapAt = 0;
   state.mashMode = false;
   state.mashCount = 0;
+  state.mashStartAt = 0;
+  if (state.mashEndTimer) { clearTimeout(state.mashEndTimer); state.mashEndTimer = null; }
   state.rhythmClearSec = 0;
   state.mashPending = false;
   els.scenes.game.classList.remove('mash-mode');

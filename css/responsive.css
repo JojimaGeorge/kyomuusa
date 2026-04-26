@@ -73,8 +73,9 @@
   /* Mash overlay grows with screen */
   .mash-title-wrap { max-width: 360px; }
   .mash-counter { font-size: 60px; }
-  .mash-counter .mash-slash,
-  .mash-counter .mash-target { font-size: 36px; }
+  .mash-counter .mash-unit { font-size: 32px; }
+  .mash-timer-bar { width: 260px; height: 16px; }
+  .mash-timer-text { font-size: 20px; }
 }
 
 /* ============================================================
@@ -180,9 +181,11 @@
 
   .mash-overlay { padding-bottom: 30%; }
   .mash-title-wrap { width: 74%; max-width: 260px; margin-bottom: 10px; }
-  .mash-counter { font-size: 40px; gap: 4px; }
-  .mash-counter .mash-slash,
-  .mash-counter .mash-target { font-size: 26px; }
+  .mash-counter { font-size: 40px; gap: 6px; }
+  .mash-counter .mash-unit { font-size: 22px; letter-spacing: 2px; }
+  .mash-timer-wrap { margin-top: 8px; gap: 4px; }
+  .mash-timer-bar { width: 180px; height: 12px; }
+  .mash-timer-text { font-size: 15px; }
   .mash-instruction { font-size: 17px; margin-top: 6px; letter-spacing: 2px; }
 
   /* CTA compaction on short screens */

@@ -82,15 +82,12 @@ export function computeFinalScore() {
     ? 5000 + Math.round((targetBeats - rhythmBeats) * 700)
     : Math.max(0, Math.round((targetBeats + 11 - rhythmBeats) * 460));
 
-  // Mash timeBonus (seconds-based): the 30-tap mash phase rewards raw tap
-  // speed. 4s = 神速 (4000pt), 8s = 標準 (3000pt), 10s = 600pt, 12s+ = 0pt.
-  // Linear slope 250/sec under target; cliff to over-formula past 8s.
+  // v=152 mash timeBonus: fixed 5-second window. Each mash tap = +150pt here.
+  // greatCount attribution below adds another +150 → total +300 per mash tap.
+  // mashTimeSec retained in breakdown for legacy display only.
   const totalClearSec = state.clearTime || rhythmSec;
   const mashTimeSec = Math.max(0, totalClearSec - rhythmSec);
-  const mashTargetSec = 8;
-  const mashTimeBonus = mashTimeSec <= mashTargetSec
-    ? 3000 + Math.round((mashTargetSec - mashTimeSec) * 250)
-    : Math.max(0, Math.round((mashTargetSec + 4 - mashTimeSec) * 300));
+  const mashTimeBonus = (state.mashCount || 0) * 150;
 
   const timeBonus = rhythmTimeBonus + mashTimeBonus;
 

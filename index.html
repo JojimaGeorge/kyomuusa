@@ -67,14 +67,14 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=151"/>
-<link rel="stylesheet" href="./css/title.css?v=151"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=151"/>
-<link rel="stylesheet" href="./css/overlays.css?v=151"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=151"/>
-<link rel="stylesheet" href="./css/cta.css?v=151"/>
-<link rel="stylesheet" href="./css/ranking.css?v=151"/>
-<link rel="stylesheet" href="./css/responsive.css?v=151"/>
+<link rel="stylesheet" href="./css/base.css?v=152"/>
+<link rel="stylesheet" href="./css/title.css?v=152"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=152"/>
+<link rel="stylesheet" href="./css/overlays.css?v=152"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=152"/>
+<link rel="stylesheet" href="./css/cta.css?v=152"/>
+<link rel="stylesheet" href="./css/ranking.css?v=152"/>
+<link rel="stylesheet" href="./css/responsive.css?v=152"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -188,14 +188,18 @@
       <div class="combo-layer" id="combo-layer"></div>
       <div class="flash" id="flash"></div>
 
-      <!-- ===== MASH MODE (99% → 30連打) ===== -->
+      <!-- ===== MASH MODE (99% → 5秒間連打) ===== -->
       <div class="mash-overlay" id="mash-overlay">
         <div class="mash-bg-pulse"></div>
         <div class="mash-title-wrap">
           <img class="mash-title" src="./assets/title2.webp" alt="猛プッシュ"/>
         </div>
         <div class="mash-counter">
-          <span id="mash-count">0</span><span class="mash-slash">/</span><span class="mash-target">30</span>
+          <span id="mash-count">0</span><span class="mash-unit">TAPS</span>
+        </div>
+        <div class="mash-timer-wrap">
+          <div class="mash-timer-bar"><div class="mash-timer-fill" id="mash-timer-fill"></div></div>
+          <div class="mash-timer-text">残り <span id="mash-timer-num">5.0</span>s</div>
         </div>
         <div class="mash-instruction">連打せよ！！</div>
       </div>
@@ -352,6 +356,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=151"></script>
+<script type="module" src="./js/main.js?v=152"></script>
 </body>
 </html>

@@ -50,10 +50,12 @@ export const state = {
   gifPendingAdvance: false,
   activeChar: 'A',
 
-  // Mash phase
+  // Mash phase (v=152: fixed 5-second window — no tap target, count what you can)
   mashMode: false,
   mashCount: 0,
-  mashTarget: 30,
+  mashWindowMs: 5000,
+  mashStartAt: 0,
+  mashEndTimer: null,
   mashPending: false,
 
   // Fever (gauge >= FEVER_THRESHOLD until mash entry)

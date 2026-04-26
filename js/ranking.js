@@ -29,11 +29,13 @@ export async function submitScore() {
   // tempo bias where faster BGM tracks earned bigger time bonuses). Fall back
   // to the TUNING default if state somehow never picked it up.
   const beatIntervalMs = Number(state.lastBeatInterval || TUNING.beatIntervalMs || 458);
-  // mashTimeSec lets the server award a separate seconds-based bonus for the
-  // 30-tap mash phase (where raw speed matters and beat-normalization doesn't).
+  // v=152 mash payload: fixed-window mode. mashWindowSec presence flips the
+  // server into tap-count scoring (mashTaps * 150). mashTimeSec is still sent
+  // for backward compatibility but the new server path ignores it.
   const rhythmSec = Number(state.rhythmClearSec || 0);
   const totalSec = Number(state.clearTime || rhythmSec);
   const mashTimeSec = Math.max(0, totalSec - rhythmSec);
+  const mashWindowSec = (state.mashWindowMs || 5000) / 1000;
   const payload = {
     version: GAME_VERSION,
     trackId: (state.currentTrackId != null && state.currentTrackId >= 0) ? state.currentTrackId : null,
@@ -49,6 +51,8 @@ export async function submitScore() {
       decayTotal: Number(state.decayTotal || 0),
       beatIntervalMs,
       mashTimeSec,
+      mashWindowSec,
+      mashTaps,
       feverPerfectCount: state.feverPerfectCount | 0,
       feverGreatCount: state.feverGreatCount | 0,
       feverGoodCount: state.feverGoodCount | 0,
