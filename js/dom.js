@@ -72,6 +72,8 @@ export function setupDom() {
     songPickerList: $('#song-picker-list'),
     songPickerVersion: $('#song-picker-version'),
     songPickerClose: $('#song-picker-close'),
+    bgPickerList: $('#bg-picker-list'),
+    roomBgImg: $('.room-bg-img'),
     shareCopy: $('#share-copy'),
     shareToast: $('#cta-share-toast'),
     mashOverlay: $('#mash-overlay'),

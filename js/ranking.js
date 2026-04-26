@@ -4,7 +4,7 @@
    scoreboard⇄ranking swipe carousel.
    ============================================================ */
 
-import { GAME_VERSION, RANKING_API } from './config.js';
+import { GAME_VERSION, RANKING_API, TUNING } from './config.js';
 import { state } from './state.js';
 import { els } from './dom.js';
 
@@ -23,8 +23,17 @@ export async function submitScore() {
   // per-tap cap (200).
   const mashTaps = state.mashCount | 0;
   const tapsTotal = state.taps | 0; // already includes mashTaps
-  const HIT_SCORE_PER_TAP_CAP = 200; // must match SANITY.hitScorePerTap in game-api/src/index.js
+  const HIT_SCORE_PER_TAP_CAP = 300; // must match SANITY.hitScorePerTap in game-api/src/index.js
   const hitScore = Math.min(state.runningScore | 0, HIT_SCORE_PER_TAP_CAP * tapsTotal);
+  // beatIntervalMs lets the server compute beat-normalized timeBonus (kills the
+  // tempo bias where faster BGM tracks earned bigger time bonuses). Fall back
+  // to the TUNING default if state somehow never picked it up.
+  const beatIntervalMs = Number(state.lastBeatInterval || TUNING.beatIntervalMs || 458);
+  // mashTimeSec lets the server award a separate seconds-based bonus for the
+  // 30-tap mash phase (where raw speed matters and beat-normalization doesn't).
+  const rhythmSec = Number(state.rhythmClearSec || 0);
+  const totalSec = Number(state.clearTime || rhythmSec);
+  const mashTimeSec = Math.max(0, totalSec - rhythmSec);
   const payload = {
     version: GAME_VERSION,
     trackId: (state.currentTrackId != null && state.currentTrackId >= 0) ? state.currentTrackId : null,
@@ -38,6 +47,11 @@ export async function submitScore() {
       missCount: state.missCount | 0,
       hitScore,
       decayTotal: Number(state.decayTotal || 0),
+      beatIntervalMs,
+      mashTimeSec,
+      feverPerfectCount: state.feverPerfectCount | 0,
+      feverGreatCount: state.feverGreatCount | 0,
+      feverGoodCount: state.feverGoodCount | 0,
     },
   };
   try {

@@ -58,8 +58,19 @@ export function handleTap(ev) {
     else if (rating === 'good') state.goodCount++;
   }
 
-  // running score (HUD motivator): miss gives 0 to kill mashing-for-points
-  const ratingPts = { perfect: 300, great: 180, good: 90, miss: 0 }[rating];
+  // FEVER zone: 1.5x score multiplier on every non-miss tap.
+  // Track per-rating fever counts so computeFinalScore can replay the bonus
+  // server-side (lock-step). Without separate counters the server can't tell
+  // which hits earned the multiplier, so the bonus would get clipped by the
+  // hitScore cap and never materialize in the final score.
+  if (state.feverActive && rating !== 'miss') {
+    if (rating === 'perfect') state.feverPerfectCount++;
+    else if (rating === 'great') state.feverGreatCount++;
+    else if (rating === 'good') state.feverGoodCount++;
+  }
+  const baseRatingPts = { perfect: 300, great: 180, good: 90, miss: 0 }[rating];
+  const feverMult = (state.feverActive && rating !== 'miss') ? 1.5 : 1;
+  const ratingPts = baseRatingPts * feverMult;
   const comboMult = 1 + Math.min(state.combo, 30) * 0.05;
   state.runningScore += Math.round(ratingPts * comboMult);
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');

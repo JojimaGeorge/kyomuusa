@@ -131,13 +131,17 @@ export function updateIndicator(now) {
   els.rhythmIndicator.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(3)})`;
   els.rhythmIndicator.style.opacity = opacity.toFixed(2);
 
-  // Brighter glow near the beat (yellow always)
+  // FEVER zone: ring switches from yellow to red-leaning hot pink (#FF3370).
+  // Same RGB string used in both boxShadow stops to keep the per-frame inline
+  // write idempotent (CSS transition on borderColor only fires on the flip).
+  const isFever = state.feverActive;
+  const glowRGB = isFever ? '255,51,112' : '255,230,0';
   if (dtMin < TUNING.greatWindowMs) {
-    els.rhythmIndicator.style.boxShadow = '0 0 40px 6px rgba(255,230,0,0.95), inset 0 0 18px rgba(255,230,0,0.6)';
+    els.rhythmIndicator.style.boxShadow = `0 0 40px 6px rgba(${glowRGB},0.95), inset 0 0 18px rgba(${glowRGB},0.6)`;
   } else {
-    els.rhythmIndicator.style.boxShadow = '0 0 16px rgba(255,230,0,0.55), inset 0 0 12px rgba(255,230,0,0.3)';
+    els.rhythmIndicator.style.boxShadow = `0 0 16px rgba(${glowRGB},0.55), inset 0 0 12px rgba(${glowRGB},0.3)`;
   }
-  els.rhythmIndicator.style.borderColor = '#FFE600';
+  els.rhythmIndicator.style.borderColor = isFever ? '#FF3370' : '#FFE600';
 }
 
 /* ---------- Tap judgment ----------

@@ -8,6 +8,7 @@ import {
   GAME_VERSION,
   SHARE_HASHTAGS, SHARE_URL,
   SONG_PICKER_KEY, SONG_PICKER_TAP_WINDOW, SONG_PICKER_REQUIRED,
+  BG_VARIANTS, BG_PICKER_KEY,
   TUNING,
 } from './config.js';
 import { state } from './state.js';
@@ -117,7 +118,22 @@ export function typeTagline() {
 export function buildShareText() {
   const score = (state.finalScore || 0).toLocaleString('en-US');
   const rank = state.rank || computeRank(state.finalScore || 0);
-  return `きょむうさ猛プッシュで ランク ${rank} / スコア ${score} 達成！\n${SHARE_HASHTAGS}`;
+  // Pull ranking position from whichever field the server populated.
+  // - r.you.position: when player is OUT of top5
+  // - r.top[i].you=true: when player is IN top5 (position is the 1-based index)
+  // Falls back silently when ranking hasn't loaded (offline / API error).
+  let positionTxt = '';
+  const r = state.rankingResult;
+  if (r) {
+    let pos = null;
+    if (r.you && r.you.position) pos = r.you.position;
+    else if (Array.isArray(r.top)) {
+      const idx = r.top.findIndex(e => e && e.you);
+      if (idx >= 0) pos = idx + 1;
+    }
+    if (pos) positionTxt = `/ランキング${pos}位`;
+  }
+  return `#きょむうさ猛プッシュ でランク${rank}/スコア${score}${positionTxt}達成！\nみんなでハイスコアを目指そう🐰🥇\n${SHARE_HASHTAGS}`;
 }
 export function shareOnX() {
   const text = buildShareText();
@@ -196,9 +212,50 @@ function buildSongPicker() {
     els.songPickerList.appendChild(btn);
   });
 }
+
+/* ---------- BG picker ----------
+   localStorage[BG_PICKER_KEY] = idx (force) | null/missing/'random' (weighted).
+   gameloop.pickBackground() reads the same key on each startGame. */
+function getForcedBgIdx() {
+  try {
+    const v = localStorage.getItem(BG_PICKER_KEY);
+    if (v === null || v === '' || v === 'random') return null;
+    const idx = parseInt(v, 10);
+    return isNaN(idx) ? null : idx;
+  } catch (e) { return null; }
+}
+function setForcedBgIdx(idx) {
+  try {
+    if (idx === null || idx === undefined) localStorage.removeItem(BG_PICKER_KEY);
+    else localStorage.setItem(BG_PICKER_KEY, String(idx));
+  } catch (e) {}
+}
+function buildBgPicker() {
+  if (!els.bgPickerList) return;
+  const current = getForcedBgIdx();
+  const items = [
+    { idx: null, label: 'RANDOM', tag: '80/20' },
+    ...BG_VARIANTS.map((bg, i) => ({ idx: i, label: bg.label, tag: bg.weight + '%' })),
+  ];
+  els.bgPickerList.innerHTML = '';
+  items.forEach((it) => {
+    const btn = document.createElement('button');
+    btn.className = 'song-picker-btn' + ((current === it.idx || (current === null && it.idx === null)) ? ' selected' : '');
+    btn.innerHTML = '<span class="sp-label">' + it.label + '</span><span class="sp-tag">' + it.tag + '</span>';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setForcedBgIdx(it.idx);
+      buildBgPicker();
+      closeSongPicker();
+    });
+    els.bgPickerList.appendChild(btn);
+  });
+}
 export function openSongPicker() {
   if (!els.songPicker) return;
   buildSongPicker();
+  buildBgPicker();
   if (els.songPickerVersion) {
     const ctxState = (Snd.getCtxState && Snd.getCtxState()) || 'none';
     const bgmInfo = (Snd.getBgmState && Snd.getBgmState()) || '';

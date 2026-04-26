@@ -2,7 +2,7 @@
    gameloop.js — Main rAF loop, scene start/clear flow, countdown.
    ============================================================ */
 
-import { TUNING, CLEAR_F_PLAY_MS, STAGE_GIFS } from './config.js';
+import { TUNING, CLEAR_F_PLAY_MS, STAGE_GIFS, BG_VARIANTS, BG_PICKER_KEY } from './config.js';
 import { state } from './state.js';
 import { els, showScene, updateRectCache } from './dom.js';
 import { Snd } from './sound.js';
@@ -42,6 +42,26 @@ export function loop() {
   state.rafId = requestAnimationFrame(loop);
 }
 
+/* ---------- Background variant picker ----------
+   Honors a debug-picker override stored in localStorage; otherwise rolls a
+   weighted random over BG_VARIANTS. Returns the chosen src string. */
+function pickBackground() {
+  try {
+    const v = localStorage.getItem(BG_PICKER_KEY);
+    if (v !== null && v !== '' && v !== 'random') {
+      const idx = parseInt(v, 10);
+      if (!isNaN(idx) && BG_VARIANTS[idx]) return BG_VARIANTS[idx].src;
+    }
+  } catch (e) {}
+  const totalWeight = BG_VARIANTS.reduce((s, v) => s + (v.weight | 0), 0);
+  let r = Math.random() * totalWeight;
+  for (const v of BG_VARIANTS) {
+    r -= (v.weight | 0);
+    if (r <= 0) return v.src;
+  }
+  return BG_VARIANTS[0].src;
+}
+
 /* ---------- Start / Clear ---------- */
 export function startGame() {
   showScene('game');
@@ -66,6 +86,16 @@ export function startGame() {
   state.cleared = false;
   state.feverActive = false;
   state.feverFired = false;
+  state.feverPerfectCount = 0;
+  state.feverGreatCount = 0;
+  state.feverGoodCount = 0;
+  // Pick BG variant for this play (forced override or weighted random)
+  if (els.roomBgImg) {
+    const bgSrc = pickBackground();
+    if (els.roomBgImg.getAttribute('src') !== bgSrc) {
+      els.roomBgImg.src = bgSrc;
+    }
+  }
   setGifStage('A');
   renderGauge();
   els.tapCount.textContent = '000000';

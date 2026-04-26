@@ -59,6 +59,9 @@ export const state = {
   // Fever (gauge >= FEVER_THRESHOLD until mash entry)
   feverActive: false,
   feverFired: false,  // one-shot guard: once fever fired this game, never re-fire
+  feverPerfectCount: 0,  // perfects landed during fever zone (1.5x score bonus)
+  feverGreatCount: 0,
+  feverGoodCount: 0,
 
   // Indicator-only animation (during countdown)
   indicatorActive: false,

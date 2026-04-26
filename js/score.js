@@ -40,47 +40,82 @@ export function rollNumber(el, from, to, duration = 900, onDone) {
 }
 
 export function computeRank(score) {
-  if (score >= 25000) return 'S';
-  if (score >= 23000) return 'A';
-  if (score >= 21000) return 'B';
-  if (score >= 19000) return 'C';
+  // SS added at the top (v=148); existing thresholds shifted down one tier.
+  // SS = god-tier (was the old S threshold), D-floor lowered to 16000.
+  if (score >= 38000) return 'SS';
+  if (score >= 32000) return 'S';
+  if (score >= 25000) return 'A';
+  if (score >= 18000) return 'B';
+  if (score >= 16000) return 'C';
   return 'D';
 }
 
 /* Final score: timing-first balance — reward precision + combo + speed,
    penalize hammering and gauge decay.
-   - hitScore: runningScore (per-tap rating*combo mult). Miss=0.
-   - timeBonus: target=18秒基準で2段階算出。マッシュフェーズ時間は除外しリズムクリア時間のみ評価。
-   - accuracyBonus: perfectCount*400 + greatCount*150。
+   - hitScore: runningScore (per-tap rating*combo mult). Miss=0. Cap 300/tap
+     gives FEVER's 1.5x multiplier room to breathe (was 200 pre-v=147).
+   - timeBonus: ビート単位で評価（テンポ差を打ち消す）。targetBeats=44 を基準に
+     早ければ +、遅ければ漸減。マッシュフェーズ時間は除外。
+   - accuracyBonus: perfectCount*400 + (great+mash)*150 + feverBonus(0.5x base
+     for fever-zone hits)。
    - comboBonus: maxCombo * 200。
    - noMissBonus: missCount===0 で +3000 フラット。
    - decayPenalty: 減衰で失ったゲージ量 * 40 を減点。
-   - efficiencyFactor: タップ数超過で減衰、下限 0.3。
-   Lock-step with server recomputeScore — both clamp hitScore to 200 * taps
-   and count mash taps as 'great' for accuracyBonus. Without these the
-   scoreboard total and ranking row total disagree. */
+   - efficiencyFactor: タップ数超過で減衰、下限 0.3。基準 44 (1.5x play time)。
+   Lock-step with server recomputeScore — both clamp hitScore to 300 * taps,
+   count mash taps as 'great', and apply the same fever bonus. Without these
+   the scoreboard total and ranking row total disagree. */
 export function computeFinalScore() {
   const taps = state.taps || 0;
-  const HIT_SCORE_PER_TAP_CAP = 200;
+  const HIT_SCORE_PER_TAP_CAP = 300;
   const hitScore = Math.min(state.runningScore || 0, HIT_SCORE_PER_TAP_CAP * taps);
-  const target = TUNING.targetTimeSec || 16;
+
+  // Beat-normalized rhythm timeBonus: removes tempo bias (faster songs no
+  // longer get free seconds-bonus). Convert rhythmSec → rhythmBeats via
+  // beatIntervalMs. Mash phase is intentionally NOT included here — it gets
+  // its own seconds-based bonus below where raw speed actually matters.
+  const interval = state.lastBeatInterval || TUNING.beatIntervalMs || 458;
+  const targetBeats = 44;
   const rhythmSec = state.rhythmClearSec || state.clearTime;
-  const timeBonus = rhythmSec <= target
-    ? 5000 + Math.round((target - rhythmSec) * 1500)
-    : Math.max(0, Math.round((target + 5 - rhythmSec) * 1000));
+  const rhythmBeats = (rhythmSec * 1000) / interval;
+  const rhythmTimeBonus = rhythmBeats <= targetBeats
+    ? 5000 + Math.round((targetBeats - rhythmBeats) * 700)
+    : Math.max(0, Math.round((targetBeats + 11 - rhythmBeats) * 460));
+
+  // Mash timeBonus (seconds-based): the 30-tap mash phase rewards raw tap
+  // speed, so beat-normalization makes no sense. Target 8s = standard
+  // (3000pt). 5s ≈ 神速 (~4050pt), 10s ≈ 遅め (600pt), 12s+ = 0pt.
+  // 3s is humanly impossible at 30 taps with 60ms debounce (1.8s floor),
+  // so 5s is the realistic ceiling. Mash duration = total - rhythm.
+  const totalClearSec = state.clearTime || rhythmSec;
+  const mashTimeSec = Math.max(0, totalClearSec - rhythmSec);
+  const mashTargetSec = 8;
+  const mashTimeBonus = mashTimeSec <= mashTargetSec
+    ? 3000 + Math.round((mashTargetSec - mashTimeSec) * 350)
+    : Math.max(0, Math.round((mashTargetSec + 4 - mashTimeSec) * 300));
+
+  const timeBonus = rhythmTimeBonus + mashTimeBonus;
+
   const greatForScore = (state.greatCount || 0) + (state.mashCount || 0);
-  const accuracyBonus = (state.perfectCount || 0) * 400 + greatForScore * 150;
+  const accuracyBase = (state.perfectCount || 0) * 400 + greatForScore * 150;
+  // FEVER bonus: 0.5x of base accuracy values for hits that landed during the
+  // fever zone. Combined with the tap.js 1.5x runningScore multiplier this
+  // delivers the user-facing "FEVER中は得点1.5倍" promise end-to-end.
+  const feverBonus = (state.feverPerfectCount || 0) * 200
+                   + (state.feverGreatCount || 0) * 75
+                   + (state.feverGoodCount || 0) * 45;
+  const accuracyBonus = accuracyBase + feverBonus;
   const comboBonus = (state.maxCombo || 0) * 200;
   const noMissBonus = (state.missCount || 0) === 0 ? 3000 : 0;
   const decayPenalty = Math.round((state.decayTotal || 0) * 40);
-  const optimalTaps = 29;
+  const optimalTaps = 44;
   const efficiencyFactor = Math.max(
     0.3,
     Math.min(1.0, optimalTaps / Math.max(taps || optimalTaps, optimalTaps))
   );
   const raw = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus - decayPenalty;
   const total = Math.max(0, Math.round(raw * efficiencyFactor));
-  state.scoreBreakdown = { hitScore, timeBonus, accuracyBonus, comboBonus, noMissBonus, decayPenalty, efficiencyFactor, total };
+  state.scoreBreakdown = { hitScore, timeBonus, rhythmTimeBonus, mashTimeBonus, mashTimeSec, accuracyBonus, comboBonus, noMissBonus, decayPenalty, feverBonus, efficiencyFactor, total };
   return total;
 }
 
@@ -104,6 +139,9 @@ export function renderCTAScore() {
   if (els.sbTotal)       els.sbTotal.textContent = '0';
   if (els.ctaRankBadge) {
     els.ctaRankBadge.className = 'cta-rank-badge';
+    // SS letters are 2-wide, so trim font-size slightly via a marker class
+    // — keeps the badge from overflowing the .cta-info row width.
+    if (rank === 'SS') els.ctaRankBadge.classList.add('rank-double');
     els.ctaRankBadge.textContent = rank;
   }
 

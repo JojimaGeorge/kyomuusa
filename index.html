@@ -67,14 +67,14 @@
 </script>
 
 <!-- ===== Split CSS bundle (loaded in dependency order; responsive last) ===== -->
-<link rel="stylesheet" href="./css/base.css?v=146"/>
-<link rel="stylesheet" href="./css/title.css?v=146"/>
-<link rel="stylesheet" href="./css/scene-game.css?v=146"/>
-<link rel="stylesheet" href="./css/overlays.css?v=146"/>
-<link rel="stylesheet" href="./css/clear-video.css?v=146"/>
-<link rel="stylesheet" href="./css/cta.css?v=146"/>
-<link rel="stylesheet" href="./css/ranking.css?v=146"/>
-<link rel="stylesheet" href="./css/responsive.css?v=146"/>
+<link rel="stylesheet" href="./css/base.css?v=148"/>
+<link rel="stylesheet" href="./css/title.css?v=148"/>
+<link rel="stylesheet" href="./css/scene-game.css?v=148"/>
+<link rel="stylesheet" href="./css/overlays.css?v=148"/>
+<link rel="stylesheet" href="./css/clear-video.css?v=148"/>
+<link rel="stylesheet" href="./css/cta.css?v=148"/>
+<link rel="stylesheet" href="./css/ranking.css?v=148"/>
+<link rel="stylesheet" href="./css/responsive.css?v=148"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@700;900&family=Press+Start+2P&family=Bagel+Fat+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
@@ -129,11 +129,14 @@
       <button class="start-btn" id="start-btn">GAME START</button>
       <div class="powered-by">Powered by CasLive</div>
 
-      <!-- ===== DEBUG: Song picker (5タップで起動) ===== -->
+      <!-- ===== DEBUG: Picker (5タップで起動). Holds both BGM and BG selectors. ===== -->
       <div class="song-picker" id="song-picker" aria-hidden="true">
         <div class="song-picker-card">
-          <div class="song-picker-title">SELECT BGM</div>
+          <div class="song-picker-title">DEBUG</div>
+          <div class="song-picker-section-label">BGM</div>
           <div class="song-picker-list" id="song-picker-list"></div>
+          <div class="song-picker-section-label">BACKGROUND</div>
+          <div class="song-picker-list" id="bg-picker-list"></div>
           <div class="song-picker-version" id="song-picker-version"></div>
           <button class="song-picker-close" id="song-picker-close" aria-label="閉じる">CLOSE</button>
         </div>
@@ -144,7 +147,9 @@
     <section class="scene" id="scene-game" data-screen-label="G Gameplay">
       <div class="now-playing" id="now-playing"></div>
       <div class="room-bg" aria-hidden="true">
-        <img class="room-bg-img" src="./assets/room_scene_bg.webp" alt=""/>
+        <!-- Default to gameBG_A (80% weight). gameloop.startGame() swaps to
+             gameBG_B 20% of the time (or honors a forced debug-picker choice). -->
+        <img class="room-bg-img" src="./assets/gameBG_A.webp" alt=""/>
       </div>
       <div class="hologram-overlay"></div>
       <div class="hologram-dots"></div>
@@ -347,6 +352,6 @@
 <div class="tweaks" id="tweaks-panel"></div>
 
 <!-- ===== ESM entry — loaded as module so each js/*.js can import its peers ===== -->
-<script type="module" src="./js/main.js?v=146"></script>
+<script type="module" src="./js/main.js?v=148"></script>
 </body>
 </html>

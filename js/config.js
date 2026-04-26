@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v146';
+export const GAME_VERSION = 'v148';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
@@ -22,12 +22,12 @@ export const TUNING = /*EDITMODE-BEGIN*/{
   "perfectWindowMs": 100,
   "greatWindowMs": 190,
   "goodWindowMs": 290,
-  "gainPerfect": 3.85,
-  "gainGreat": 2.31,
-  "gainGood": 1.31,
+  "gainPerfect": 2.95,
+  "gainGreat": 1.77,
+  "gainGood": 1.00,
   "gainMiss": 0,
   "decayPerSec": 2.0,
-  "targetTimeSec": 18,
+  "targetTimeSec": 27,
   "beatLatencyMs": 80,
   "hologramStrength": 0,
   "effectIntensity": 10,
@@ -65,7 +65,9 @@ export const GOOD_ICONS = [
 ];
 
 /* SNS share */
-export const SHARE_HASHTAGS = '#きょむうさ猛プッシュ #CasLive';
+// #きょむうさ猛プッシュ moved to the start of buildShareText's line 1.
+// Only the residual hashtags remain here (joined to the message body via \n).
+export const SHARE_HASHTAGS = '#CasLive';
 export const SHARE_URL = (typeof window !== 'undefined' && window.location)
   ? window.location.href.split('?')[0]
   : 'https://caslive.jp/';
@@ -74,3 +76,12 @@ export const SHARE_URL = (typeof window !== 'undefined' && window.location)
 export const SONG_PICKER_KEY = 'kyomuusa_force_track';
 export const SONG_PICKER_TAP_WINDOW = 1500; // ms — taps within window count toward unlock
 export const SONG_PICKER_REQUIRED = 5;
+
+/* Background variants — picked at startGame() with weighted randomness.
+   Weights are integers; pickBackground sums them and rolls Math.random*total.
+   Force-select via debug picker writes BG_PICKER_KEY=<index> to localStorage. */
+export const BG_VARIANTS = [
+  { src: './assets/gameBG_A.webp', label: 'BG_A', weight: 80 },
+  { src: './assets/gameBG_B.webp', label: 'BG_B', weight: 20 },
+];
+export const BG_PICKER_KEY = 'kyomuusa_force_bg';

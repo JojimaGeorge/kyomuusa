@@ -196,6 +196,20 @@
   margin-bottom: 14px;
   text-shadow: 0 2px 0 #1a0a2e;
 }
+/* Section divider for the multi-section debug picker (BGM / BACKGROUND).
+   Sits flush against the next list (no top margin) and adds breathing room
+   above when it's not the first section in the card. */
+.song-picker-section-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #FF3EA5;
+  text-align: left;
+  padding-left: 4px;
+  margin-bottom: 6px;
+  text-shadow: 0 1px 0 #1a0a2e;
+}
+.song-picker-section-label + .song-picker-list { margin-bottom: 10px; }
+.song-picker-list + .song-picker-section-label { margin-top: 4px; }
 .song-picker-list {
   display: flex;
   flex-direction: column;
