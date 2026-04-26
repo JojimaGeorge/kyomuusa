@@ -40,14 +40,14 @@ export function rollNumber(el, from, to, duration = 900, onDone) {
 }
 
 export function computeRank(score) {
-  // v=154 retune: -6000pt shift. v=153 mash mode delivers strict +400/tap (vs
-  // the v=152 effective +600/tap), trimming ~5-6k from typical engaged plays.
-  // Without this shift, "near max combo + 60 mash" plays were landing at D.
-  if (score >= 36000) return 'SS';
-  if (score >= 34000) return 'S';
-  if (score >= 32000) return 'A';
-  if (score >= 30000) return 'B';
-  if (score >= 28000) return 'C';
+  // v=155: restored to the v=149 thresholds. Mash bumped to +800/tap and the
+  // mashScore now bypasses efficiencyFactor, so engaged plays naturally land
+  // back in the original 34k-42k window even with heavy mash counts.
+  if (score >= 42000) return 'SS';
+  if (score >= 40000) return 'S';
+  if (score >= 38000) return 'A';
+  if (score >= 36000) return 'B';
+  if (score >= 34000) return 'C';
   return 'D';
 }
 
@@ -87,7 +87,7 @@ export function computeFinalScore() {
     ? 5000 + Math.round((targetBeats - rhythmBeats) * 700)
     : Math.max(0, Math.round((targetBeats + 11 - rhythmBeats) * 460));
 
-  // v=153 mash mode: mashTimeBonus folded into mashScore (+400/tap directly).
+  // v=155 mash mode: mashTimeBonus folded into mashScore (+800/tap directly).
   const totalClearSec = state.clearTime || rhythmSec;
   const mashTimeSec = Math.max(0, totalClearSec - rhythmSec);
   const mashTimeBonus = 0;
@@ -112,8 +112,11 @@ export function computeFinalScore() {
     0.3,
     Math.min(1.0, optimalTaps / Math.max(taps || optimalTaps, optimalTaps))
   );
-  const raw = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus + mashScore - decayPenalty;
-  const total = Math.max(0, Math.round(raw * efficiencyFactor));
+  // v=155: mashScore bypasses efficiencyFactor so heavy mash actually scales
+  // the final score. Rhythm-side raw still gets multiplied by efficiencyFactor.
+  // This must stay lock-step with server recomputeScore (game-api/src/index.js).
+  const rawWithoutMash = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus - decayPenalty;
+  const total = Math.max(0, Math.round(rawWithoutMash * efficiencyFactor) + mashScore);
   state.scoreBreakdown = { hitScore, timeBonus, rhythmTimeBonus, mashTimeBonus, mashTimeSec, mashScore, accuracyBonus, comboBonus, noMissBonus, decayPenalty, feverBonus, efficiencyFactor, total };
   return total;
 }

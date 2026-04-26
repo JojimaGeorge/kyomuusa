@@ -120,11 +120,14 @@ export function handleTap(ev) {
 }
 
 /* ---------- Mash phase (99% → 6秒間連打) ----------
-   v=153 redesign: strict +400 per mash tap. mashScore is tracked separately
-   and sent as its own payload field so the server can score mash deterministically.
-   Client puts mash taps in goodCount (zero accuracyBonus contribution) and the
-   server excludes mash taps from the hitScore cap. maxCombo is NOT extended by
-   mash taps — combo bonus stays locked to the rhythm-phase peak. */
+   v=155 redesign: strict +800 per mash tap, with mashScore bypassing the
+   efficiencyFactor on the server so heavy mash actually scales the score
+   instead of being deflated by the inflated tap denominator.
+   mashScore is tracked separately and sent as its own payload field so the
+   server can score mash deterministically. Client puts mash taps in goodCount
+   (zero accuracyBonus contribution) and the server excludes mash taps from
+   the hitScore cap. maxCombo is NOT extended by mash taps — combo bonus stays
+   locked to the rhythm-phase peak. */
 export function enterMashMode() {
   if (state.mashMode || state.cleared) return;
   exitFever();
@@ -173,10 +176,10 @@ export function doMashTap() {
   els.mashCount.className = parity.mashPop ? 'pop' : 'pop-b';
 
   // Gauge stays at 99 during the window (B案). Finish flips it to 100.
-  // Running score: +400 per tap. mashRunningScore is also tracked separately
-  // so submitScore can split rhythm vs mash for the v=153 server formula.
-  state.runningScore = (state.runningScore || 0) + 400;
-  state.mashRunningScore = (state.mashRunningScore || 0) + 400;
+  // Running score: +800 per tap (v=155). mashRunningScore is also tracked
+  // separately so submitScore can split rhythm vs mash for the server formula.
+  state.runningScore = (state.runningScore || 0) + 800;
+  state.mashRunningScore = (state.mashRunningScore || 0) + 800;
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');
   // NOTE: maxCombo intentionally NOT bumped — see header comment.
 
@@ -195,11 +198,11 @@ export function doMashTap() {
   clearTimeout(els.pushBtn._rt);
   els.pushBtn._rt = setTimeout(() => els.pushBtn.classList.remove('pressed'), 80);
 
-  // Milestone combo popups every 10 taps, +400 confetti every 3rd tap.
+  // Milestone combo popups every 10 taps, +800 confetti every 3rd tap.
   if (state.mashCount > 0 && state.mashCount % 10 === 0) {
     spawnCombo(`${state.mashCount} TAPS!!`, 'mega');
   } else if (state.mashCount % 3 === 0) {
-    spawnCombo('+400', 'small');
+    spawnCombo('+800', 'small');
   }
 }
 
