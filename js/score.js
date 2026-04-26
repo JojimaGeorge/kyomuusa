@@ -40,14 +40,14 @@ export function rollNumber(el, from, to, duration = 900, onDone) {
 }
 
 export function computeRank(score) {
-  // v=155: restored to the v=149 thresholds. Mash bumped to +800/tap and the
-  // mashScore now bypasses efficiencyFactor, so engaged plays naturally land
-  // back in the original 34k-42k window even with heavy mash counts.
-  if (score >= 42000) return 'SS';
-  if (score >= 40000) return 'S';
-  if (score >= 38000) return 'A';
-  if (score >= 36000) return 'B';
-  if (score >= 34000) return 'C';
+  // v=156 retune: shifted higher to match the +800/tap mash + efficiency-bypass
+  // scoring profile. SS now lives in the 70k+ summit, with tight bands around
+  // the C/B/A boundary (56k-60k) and a wider gap up to S/SS for top plays.
+  if (score >= 70000) return 'SS';
+  if (score >= 65000) return 'S';
+  if (score >= 60000) return 'A';
+  if (score >= 58000) return 'B';
+  if (score >= 56000) return 'C';
   return 'D';
 }
 
