@@ -51,6 +51,7 @@ export function setupDom() {
     countdownOverlay: $('#countdown-overlay'),
     countdownNum: $('#countdown-num'),
     finishOverlay: $('#finish-overlay'),
+    feverOverlay: $('#fever-overlay'),
     nowPlaying: $('#now-playing'),
     sbRowScore: $('#sb-row-score'),
     sbRowCombo: $('#sb-row-combo'),

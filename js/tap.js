@@ -10,6 +10,7 @@ import { judgeTap } from './rhythm.js';
 import { renderGauge } from './stage.js';
 import { showBadge, spawnParticles, spawnRipple, doFlash, doShake, spawnCombo } from './effects.js';
 import { triggerClear } from './gameloop.js';
+import { exitFever } from './fever.js';
 
 export function handleTap(ev) {
   if (!state.running) return;
@@ -111,6 +112,7 @@ export function handleTap(ev) {
 /* ---------- Mash phase (99% → 30連打) ---------- */
 export function enterMashMode() {
   if (state.mashMode || state.cleared) return;
+  exitFever();
   state.mashMode = true;
   state.mashCount = 0;
   els.mashCount.textContent = '0';

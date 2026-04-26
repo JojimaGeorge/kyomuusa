@@ -261,6 +261,16 @@ export const Snd = (() => {
     tone({ freq: 1568, type: 'sine', dur: 0.9, gain: 0.14, when: 0.34 });
     noise({ dur: 0.3, gain: 0.06, filterFreq: 2500, when: 0 });
   };
+  // ---- FEVER START: 突入時の「キター!」感を出すワンショット。
+  // 上昇sweep + 高音シャラ + 下支えの低音ヒット ----
+  const feverStart = () => {
+    resume();
+    noise({ dur: 0.08, gain: 0.12, filterFreq: 1800 });
+    sweep({ fromFreq: 440, toFreq: 2640, type: 'sawtooth', sweepDur: 0.30, dur: 0.55, gain: 0.16 });
+    tone({ freq: 1760, type: 'sine',     dur: 0.40, gain: 0.10, when: 0.18 });
+    tone({ freq: 2637, type: 'triangle', dur: 0.45, gain: 0.10, when: 0.24 });
+    tone({ freq: 220,  type: 'square',   dur: 0.18, gain: 0.10, when: 0.00 });
+  };
 
   /* ---- BGM buffer load + playback ---- */
   const loadBgmBuffer = async (src) => {
@@ -396,7 +406,7 @@ export const Snd = (() => {
   };
 
   return {
-    tap, hit, countBeep, finish,
+    tap, hit, countBeep, finish, feverStart,
     titleBgmStart, gameBgmStart, ctaBgmStart, bgmStop, fadeOutBGM,
     retryBgm, bgmCurrentTime, bgmPreload,
     toggle, setMute, isMuted, resume,

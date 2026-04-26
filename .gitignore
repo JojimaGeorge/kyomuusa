@@ -21,3 +21,6 @@ __pycache__/
 
 # Local asset backups (pre-optimization originals, recovery only)
 assets/_backup/
+
+# Cloudflared tunnel binary (65MB, downloaded locally for quick tunnel)
+tools/cloudflared.exe

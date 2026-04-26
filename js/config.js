@@ -2,7 +2,12 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v134';
+export const GAME_VERSION = 'v139';
+
+/* ---------- Fever phase ----------
+   Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
+   Threshold matches the C→D GIF transition so visuals + game state align. */
+export const FEVER_THRESHOLD = 60;
 
 /* ---------- Ranking API ---------- */
 // Always use the remote Workers endpoint. The localhost fallback is intentionally

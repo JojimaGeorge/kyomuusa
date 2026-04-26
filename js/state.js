@@ -56,6 +56,10 @@ export const state = {
   mashTarget: 30,
   mashPending: false,
 
+  // Fever (gauge >= FEVER_THRESHOLD until mash entry)
+  feverActive: false,
+  feverFired: false,  // one-shot guard: once fever fired this game, never re-fire
+
   // Indicator-only animation (during countdown)
   indicatorActive: false,
   indicatorRafId: null,

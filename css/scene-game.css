@@ -329,6 +329,85 @@
   z-index: 6;
 }
 
+/* ================== FEVER PHASE (gauge >= 60 → mash entry) ==================
+   Persistent visual cues while #scene-game has the .fever class. The one-shot
+   "FEVER!" text burst lives in overlays.css. JS guarantees this class is
+   removed before .mash-mode/.finishing turn on, so no precedence conflicts. */
+#scene-game.fever .gauge-fill {
+  background: linear-gradient(90deg, #FFE600 0%, #FF8A00 50%, #FF4DF6 100%);
+  animation: feverGaugePulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes feverGaugePulse {
+  0%   { filter: brightness(1)    saturate(1); }
+  100% { filter: brightness(1.22) saturate(1.35); }
+}
+#scene-game.fever .push-btn {
+  box-shadow:
+    inset 0 -10px 0 rgba(42,11,74,0.3),
+    inset 0 8px 0 rgba(255,255,255,0.4),
+    0 0 0 4px #fff,
+    0 0 0 7px var(--deep),
+    0 0 0 10px #FFE600,
+    0 12px 0 var(--deep),
+    0 0 38px 12px rgba(255,230,0,0.65),
+    0 20px 36px rgba(255,138,0,0.55);
+  animation: feverBtnGlow var(--beat-duration, 560ms) ease-in-out infinite alternate;
+}
+@keyframes feverBtnGlow {
+  0%   { filter: brightness(1)    saturate(1); }
+  100% { filter: brightness(1.12) saturate(1.18); }
+}
+/* Subtle warm scene tint above the floor — sits between room-bg(0) and char(5)
+   so the rabbit reads cleanly on top. pointer-events:none keeps taps unblocked. */
+#scene-game.fever::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse at 50% 78%, rgba(255,200,0,0.22) 0%, transparent 55%);
+  animation: feverSceneTint var(--beat-duration, 560ms) ease-in-out infinite alternate;
+}
+@keyframes feverSceneTint {
+  0%   { opacity: 0.55; }
+  100% { opacity: 1; }
+}
+
+/* ================== MASH MODE GAUGE INTENSIFICATION ==================
+   猛プッシュ中は gauge fill が99→100 のわずかな移動しかしないので、
+   色シフト＋輝度パルス＋外周グロウで「激しさ」を演出する。 */
+#scene-game.mash-mode .gauge-fill {
+  background:
+    linear-gradient(90deg, #FF4DF6 0%, #FFE600 25%, #FF4DF6 50%, #FFE600 75%, #FF4DF6 100%);
+  background-size: 200% 100%;
+  animation:
+    mashGaugeShift 0.5s linear infinite,
+    mashGaugePulse 0.22s ease-in-out infinite alternate;
+}
+@keyframes mashGaugeShift {
+  0%   { background-position:    0% 0%; }
+  100% { background-position: -200% 0%; }
+}
+@keyframes mashGaugePulse {
+  0%   { filter: brightness(1.05) saturate(1.2); }
+  100% { filter: brightness(1.55) saturate(1.85); }
+}
+#scene-game.mash-mode .gauge {
+  animation: mashBarGlow 0.28s ease-in-out infinite alternate;
+}
+@keyframes mashBarGlow {
+  0%   { box-shadow: 0 0  6px 0 rgba(255,77,246,0.30); }
+  100% { box-shadow: 0 0 22px 4px rgba(255,230,0,0.75),
+                     0 0 12px 2px rgba(255,77,246,0.55); }
+}
+#scene-game.mash-mode .gauge-num {
+  animation: mashNumPulse 0.22s ease-in-out infinite alternate;
+}
+@keyframes mashNumPulse {
+  0%   { transform: scale(1)    rotate(0); }
+  100% { transform: scale(1.18) rotate(-2deg); }
+}
+
 .ripple {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);

@@ -6,6 +6,7 @@
 
 import { TUNING, GOOD_ICONS } from './config.js';
 import { els, rect, parity } from './dom.js';
+import { state } from './state.js';
 
 /* Preload and cache natural aspect ratios so particles don't get squashed */
 const GOOD_ICON_CACHE = {};
@@ -27,6 +28,8 @@ export function showBadge(rating) {
 
 export function spawnParticles(n, color) {
   if (!TUNING.particlesEnabled) return;
+  // Fever phase boosts particle count by 1.5x to crank up the "気持ちええ" feedback.
+  if (state.feverActive) n = Math.round(n * 1.5);
   const btn   = rect.btn       || els.pushBtn.getBoundingClientRect();
   const stage = rect.particles || els.particles.getBoundingClientRect();
   const cx = btn.left + btn.width/2 - stage.left;

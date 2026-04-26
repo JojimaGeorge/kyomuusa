@@ -128,6 +128,8 @@
      ユーザー判定: 「最悪ボタンとうさぎ被ってもいいからボタン大きめに」優先。
      padding-bottom のみ SE 用に微調整 (24→14)。 */
   .push-zone { padding-bottom: 14px; }
+
+  .fever-text { font-size: 52px; letter-spacing: 2.5px; }
 }
 
 /* ============================================================
@@ -137,6 +139,9 @@
   .now-playing { padding: 0 10px; gap: 4px; max-width: calc(100% - 80px); }
   .now-playing .np-note { font-size: 12px; }
   .now-playing .np-title { font-size: 8px; letter-spacing: 0.6px; }
+
+  .fever-text { font-size: 42px; letter-spacing: 2px; }
+  .fever-overlay { top: 22%; height: 26%; }
 
   .mash-overlay { padding-bottom: 30%; }
   .mash-title-wrap { width: 74%; max-width: 260px; margin-bottom: 10px; }

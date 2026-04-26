@@ -11,6 +11,7 @@ import { renderGauge, setGifStage } from './stage.js';
 import { doFlash } from './effects.js';
 import { computeFinalScore, showClearSequence } from './score.js';
 import { submitScore } from './ranking.js';
+import { exitFever } from './fever.js';
 
 /* ---------- Main rAF ---------- */
 export function loop() {
@@ -57,10 +58,14 @@ export function startGame() {
   state.rhythmClearSec = 0;
   state.mashPending = false;
   els.scenes.game.classList.remove('mash-mode');
+  els.scenes.game.classList.remove('fever');
   els.pushBtn.classList.remove('mash-pulse');
   if (els.mashOverlay) els.mashOverlay.classList.remove('show');
+  if (els.feverOverlay) els.feverOverlay.classList.remove('show');
   if (els.mashCount) els.mashCount.textContent = '0';
   state.cleared = false;
+  state.feverActive = false;
+  state.feverFired = false;
   setGifStage('A');
   renderGauge();
   els.tapCount.textContent = '000000';
@@ -214,6 +219,7 @@ export function triggerClear() {
   if (state.cleared) return;
   state.cleared = true;
   state.running = false;
+  exitFever();
   state.clearTime = state.elapsedSec || ((performance.now() - state.startAt) / 1000);
   state.finalScore = computeFinalScore();
   // Fire-and-forget ranking submission so the network round-trip overlaps

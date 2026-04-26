@@ -2,9 +2,10 @@
    stage.js — Gauge HUD update + GIF stage state machine.
    ============================================================ */
 
-import { STAGE_GIFS } from './config.js';
+import { STAGE_GIFS, FEVER_THRESHOLD } from './config.js';
 import { state } from './state.js';
 import { els } from './dom.js';
+import { enterFever } from './fever.js';
 
 /* ---------- Gauge ---------- */
 export function renderGauge() {
@@ -19,6 +20,10 @@ export function renderGauge() {
     setGifStage('B');
   } else if (pct >= 60 && state.gifStage === 'C' && !state.gifPendingAdvance) {
     queueGifAdvance('D');
+  }
+  // Fever phase — fires once when crossing the threshold; ended at mash entry.
+  if (pct >= FEVER_THRESHOLD && !state.feverActive && !state.mashMode && !state.cleared) {
+    enterFever();
   }
 }
 
