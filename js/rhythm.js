@@ -184,7 +184,9 @@ function handleMissedBeat() {
   // (taps == perfect+great+good+miss).
   state.taps++;
   if (Snd && Snd.hit) Snd.hit('miss');
-  spawnCombo('miss', 'small');
+  // Intentionally NO spawnCombo — silent penalty (combo break + sound only).
+  // Only tapped misses show the "miss" popup; lazy-skip beats are punished
+  // through the combo reset and audio cue without spamming the visual layer.
 }
 
 export function judgeTap(now) {

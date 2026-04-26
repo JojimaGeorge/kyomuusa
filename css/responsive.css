@@ -72,7 +72,7 @@
   .char-img { width: 420px; }
   /* Mash overlay grows with screen */
   .mash-title-wrap { max-width: 360px; }
-  .mash-counter { font-size: 150px; }
+  .mash-counter { font-size: 116px; }
   .mash-timer-bar { width: 280px; height: 30px; }
   .mash-timer-text { font-size: 30px; }
 }
@@ -180,7 +180,7 @@
 
   .mash-overlay { padding-bottom: 30%; }
   .mash-title-wrap { width: 74%; max-width: 260px; margin-bottom: 10px; }
-  .mash-counter { font-size: 96px; }
+  .mash-counter { font-size: 76px; }
   .mash-timer-wrap { margin-top: 10px; gap: 6px; }
   .mash-timer-bar { width: 200px; height: 20px; }
   .mash-timer-text { font-size: 20px; letter-spacing: 2px; }
