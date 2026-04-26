@@ -40,13 +40,14 @@ export function rollNumber(el, from, to, duration = 900, onDone) {
 }
 
 export function computeRank(score) {
-  // v=149 retune: tight 2000pt bands across the high-end. Concentrates rank
-  // differentiation in the 34k-42k window where most engaged plays land.
-  if (score >= 42000) return 'SS';
-  if (score >= 40000) return 'S';
-  if (score >= 38000) return 'A';
-  if (score >= 36000) return 'B';
-  if (score >= 34000) return 'C';
+  // v=154 retune: -6000pt shift. v=153 mash mode delivers strict +400/tap (vs
+  // the v=152 effective +600/tap), trimming ~5-6k from typical engaged plays.
+  // Without this shift, "near max combo + 60 mash" plays were landing at D.
+  if (score >= 36000) return 'SS';
+  if (score >= 34000) return 'S';
+  if (score >= 32000) return 'A';
+  if (score >= 30000) return 'B';
+  if (score >= 28000) return 'C';
   return 'D';
 }
 

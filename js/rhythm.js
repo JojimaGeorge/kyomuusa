@@ -177,15 +177,12 @@ export function checkMissedBeats() {
 }
 
 function handleMissedBeat() {
+  // v=154 softening: skipped beats only break the combo. No missCount/taps
+  // bump — those are reserved for actual mistimed taps (handleTap miss path).
+  // This keeps noMissBonus/efficiencyFactor reflecting real player accuracy
+  // instead of double-penalizing both "skipping" and "trying-but-late".
   state.combo = 0;
   state.perfectStreak = 0;
-  state.missCount++;
-  // taps++ keeps server-side counts_do_not_sum check happy
-  // (taps == perfect+great+good+miss).
-  state.taps++;
-  // Intentionally silent: no popup, no sound. Lazy-skip beats are punished
-  // through the combo reset alone — adding visual/audio cues for every silent
-  // beat would spam the player who wandered for a moment.
 }
 
 export function judgeTap(now) {
@@ -207,6 +204,9 @@ export function judgeTap(now) {
       if (dt < bestDt) { bestDt = dt; bestIdx = n; }
     }
     if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
+      // v=154 fix: claim the nearest beat even on miss so checkMissedBeats
+      // doesn't double-fire on the same beat (would inflate missCount/taps).
+      if (bestIdx !== null) state.judgedBeats.add(bestIdx);
       return { rating: 'miss', gain: TUNING.gainMiss };
     }
     state.judgedBeats.add(bestIdx);
@@ -227,6 +227,8 @@ export function judgeTap(now) {
   if (!state.judgedBeats.has(nextIdx) && dtNext < bestDt) { bestDt = dtNext; bestIdx = nextIdx; }
 
   if (bestIdx === null || bestDt > TUNING.goodWindowMs) {
+    // v=154 fix: same as audio-time path — claim the nearest beat even on miss.
+    if (bestIdx !== null) state.judgedBeats.add(bestIdx);
     return { rating: 'miss', gain: TUNING.gainMiss };
   }
 
