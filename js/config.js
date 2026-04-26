@@ -2,7 +2,7 @@
    config.js — TUNING constants, version, endpoints, GIF stages
    ============================================================ */
 
-export const GAME_VERSION = 'v150';
+export const GAME_VERSION = 'v151';
 
 /* ---------- Fever phase ----------
    Triggered when gauge crosses FEVER_THRESHOLD; ends at mash entry (gauge=99).
@@ -79,9 +79,12 @@ export const SONG_PICKER_REQUIRED = 5;
 
 /* Background variants — picked at startGame() with weighted randomness.
    Weights are integers; pickBackground sums them and rolls Math.random*total.
-   Force-select via debug picker writes BG_PICKER_KEY=<index> to localStorage. */
+   Force-select via debug picker writes BG_PICKER_KEY=<index> to localStorage.
+   `bleed` is the fallback color shown around the BG image on viewports too
+   narrow for the image's aspect ratio (e.g., iPhone SE) — must match each
+   image's edge palette so the bleed strip is invisible. */
 export const BG_VARIANTS = [
-  { src: './assets/gameBG_A.webp', label: 'BG_A', weight: 80 },
-  { src: './assets/gameBG_B.webp', label: 'BG_B', weight: 20 },
+  { src: './assets/gameBG_A.webp', label: 'BG_A', weight: 80, bleed: '#9ED9CF' },
+  { src: './assets/gameBG_B.webp', label: 'BG_B', weight: 20, bleed: '#0F1749' },
 ];
 export const BG_PICKER_KEY = 'kyomuusa_force_bg';

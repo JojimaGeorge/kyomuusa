@@ -44,22 +44,23 @@ export function loop() {
 
 /* ---------- Background variant picker ----------
    Honors a debug-picker override stored in localStorage; otherwise rolls a
-   weighted random over BG_VARIANTS. Returns the chosen src string. */
+   weighted random over BG_VARIANTS. Returns the entry object (src + bleed)
+   so startGame can apply both the image and its matching bleed color. */
 function pickBackground() {
   try {
     const v = localStorage.getItem(BG_PICKER_KEY);
     if (v !== null && v !== '' && v !== 'random') {
       const idx = parseInt(v, 10);
-      if (!isNaN(idx) && BG_VARIANTS[idx]) return BG_VARIANTS[idx].src;
+      if (!isNaN(idx) && BG_VARIANTS[idx]) return BG_VARIANTS[idx];
     }
   } catch (e) {}
   const totalWeight = BG_VARIANTS.reduce((s, v) => s + (v.weight | 0), 0);
   let r = Math.random() * totalWeight;
   for (const v of BG_VARIANTS) {
     r -= (v.weight | 0);
-    if (r <= 0) return v.src;
+    if (r <= 0) return v;
   }
-  return BG_VARIANTS[0].src;
+  return BG_VARIANTS[0];
 }
 
 /* ---------- Start / Clear ---------- */
@@ -89,11 +90,17 @@ export function startGame() {
   state.feverPerfectCount = 0;
   state.feverGreatCount = 0;
   state.feverGoodCount = 0;
-  // Pick BG variant for this play (forced override or weighted random)
+  // Pick BG variant for this play (forced override or weighted random).
+  // Apply the bleed color too — narrow viewports (iPhone SE etc.) reveal a
+  // strip on either side of the image, and that strip must match the BG's
+  // edge color (e.g., gameBG_B aquarium needs deep navy, not the wall green).
   if (els.roomBgImg) {
-    const bgSrc = pickBackground();
-    if (els.roomBgImg.getAttribute('src') !== bgSrc) {
-      els.roomBgImg.src = bgSrc;
+    const bg = pickBackground();
+    if (els.roomBgImg.getAttribute('src') !== bg.src) {
+      els.roomBgImg.src = bg.src;
+    }
+    if (els.scenes.game && bg.bleed) {
+      els.scenes.game.style.backgroundColor = bg.bleed;
     }
   }
   setGifStage('A');
