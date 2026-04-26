@@ -88,10 +88,11 @@ export function handleTap(ev) {
   const partColor = rating === 'perfect' ? '#FFE600' : (rating === 'great' ? '#FF4DF6' : null);
   spawnParticles(partCount, partColor);
 
-  // combo popup
+  // combo popup. v=153: PERFECT text fires from the very first perfect tap.
+  // Streak ≥ 3 still gets the dedicated "PERFECT × N" callout for the hot streak feel.
   if (rating === 'perfect' && state.perfectStreak >= 3) spawnCombo(`PERFECT × ${state.perfectStreak}`, 'perfect');
+  else if (rating === 'perfect') spawnCombo('PERFECT', 'perfect');
   else if (state.combo >= 10 && state.combo % 5 === 0) spawnCombo(`${state.combo} COMBO!`, 'mega');
-  else if (rating === 'perfect') spawnCombo('+' + Math.floor(gain), 'big');
   else if (rating === 'great')   spawnCombo('+' + Math.floor(gain), '');
   else if (rating === 'good')    spawnCombo('+' + Math.floor(gain), 'small');
   else                           spawnCombo('miss', 'small');
@@ -118,17 +119,18 @@ export function handleTap(ev) {
   }
 }
 
-/* ---------- Mash phase (99% → 5秒間連打) ----------
-   v=152 redesign: fixed-window mode. Each mash tap = +300pt total
-   (greatCount attribution +150 + score.js mashTimeBonus +150). No tap cap.
-   Gauge stays parked at 99 throughout the window, snaps to 100 at finish.
-   maxCombo is intentionally NOT extended by mash taps — combo bonus is locked
-   to the rhythm-phase peak so scoring per mash tap stays exactly +300. */
+/* ---------- Mash phase (99% → 6秒間連打) ----------
+   v=153 redesign: strict +400 per mash tap. mashScore is tracked separately
+   and sent as its own payload field so the server can score mash deterministically.
+   Client puts mash taps in goodCount (zero accuracyBonus contribution) and the
+   server excludes mash taps from the hitScore cap. maxCombo is NOT extended by
+   mash taps — combo bonus stays locked to the rhythm-phase peak. */
 export function enterMashMode() {
   if (state.mashMode || state.cleared) return;
   exitFever();
   state.mashMode = true;
   state.mashCount = 0;
+  state.mashRunningScore = 0;
   state.mashStartAt = performance.now();
   els.mashCount.textContent = '0';
   els.scenes.game.classList.add('mash-mode');
@@ -171,9 +173,10 @@ export function doMashTap() {
   els.mashCount.className = parity.mashPop ? 'pop' : 'pop-b';
 
   // Gauge stays at 99 during the window (B案). Finish flips it to 100.
-  // Running score: +300 per tap mirrors the server-side total
-  // (greatCount +150 attribution + mashTimeBonus +150).
-  state.runningScore = (state.runningScore || 0) + 300;
+  // Running score: +400 per tap. mashRunningScore is also tracked separately
+  // so submitScore can split rhythm vs mash for the v=153 server formula.
+  state.runningScore = (state.runningScore || 0) + 400;
+  state.mashRunningScore = (state.mashRunningScore || 0) + 400;
   els.tapCount.textContent = String(state.runningScore).padStart(6, '0');
   // NOTE: maxCombo intentionally NOT bumped — see header comment.
 
@@ -192,11 +195,11 @@ export function doMashTap() {
   clearTimeout(els.pushBtn._rt);
   els.pushBtn._rt = setTimeout(() => els.pushBtn.classList.remove('pressed'), 80);
 
-  // Milestone combo popups every 10 taps, +300 confetti every 3rd tap.
+  // Milestone combo popups every 10 taps, +400 confetti every 3rd tap.
   if (state.mashCount > 0 && state.mashCount % 10 === 0) {
     spawnCombo(`${state.mashCount} TAPS!!`, 'mega');
   } else if (state.mashCount % 3 === 0) {
-    spawnCombo('+300', 'small');
+    spawnCombo('+400', 'small');
   }
 }
 

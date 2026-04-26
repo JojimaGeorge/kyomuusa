@@ -6,7 +6,7 @@ import { TUNING, CLEAR_F_PLAY_MS, STAGE_GIFS, BG_VARIANTS, BG_PICKER_KEY } from 
 import { state } from './state.js';
 import { els, showScene, updateRectCache } from './dom.js';
 import { Snd } from './sound.js';
-import { scheduleNextBeat, updateIndicator } from './rhythm.js';
+import { scheduleNextBeat, updateIndicator, checkMissedBeats } from './rhythm.js';
 import { renderGauge, setGifStage } from './stage.js';
 import { doFlash } from './effects.js';
 import { computeFinalScore, showClearSequence } from './score.js';
@@ -27,6 +27,7 @@ export function loop() {
   if (!state.mashMode) {
     scheduleNextBeat(now);
     updateIndicator(now);
+    checkMissedBeats();
   }
 
   // decay if no recent tap (tracked for final score penalty).
@@ -76,8 +77,10 @@ export function startGame() {
   state.lastTapAt = 0;
   state.mashMode = false;
   state.mashCount = 0;
+  state.mashRunningScore = 0;
   state.mashStartAt = 0;
   if (state.mashEndTimer) { clearTimeout(state.mashEndTimer); state.mashEndTimer = null; }
+  state.lastMissCheckBeat = -1;
   state.rhythmClearSec = 0;
   state.mashPending = false;
   els.scenes.game.classList.remove('mash-mode');

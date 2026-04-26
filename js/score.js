@@ -67,13 +67,17 @@ export function computeRank(score) {
    the scoreboard total and ranking row total disagree. */
 export function computeFinalScore() {
   const taps = state.taps || 0;
+  const mashTaps = state.mashCount || 0;
+  const rhythmTaps = Math.max(0, taps - mashTaps);
   const HIT_SCORE_PER_TAP_CAP = 300;
-  const hitScore = Math.min(state.runningScore || 0, HIT_SCORE_PER_TAP_CAP * taps);
+  // v=153: hitScore cap excludes mash taps (mash phase scored via mashScore).
+  const mashScore = state.mashRunningScore || 0;
+  const rhythmRunningScore = Math.max(0, (state.runningScore || 0) - mashScore);
+  const hitScore = Math.min(rhythmRunningScore, HIT_SCORE_PER_TAP_CAP * rhythmTaps);
 
   // Beat-normalized rhythm timeBonus: removes tempo bias (faster songs no
   // longer get free seconds-bonus). Convert rhythmSec → rhythmBeats via
-  // beatIntervalMs. Mash phase is intentionally NOT included here — it gets
-  // its own seconds-based bonus below where raw speed actually matters.
+  // beatIntervalMs. Mash phase is intentionally NOT included here.
   const interval = state.lastBeatInterval || TUNING.beatIntervalMs || 458;
   const targetBeats = 44;
   const rhythmSec = state.rhythmClearSec || state.clearTime;
@@ -82,17 +86,16 @@ export function computeFinalScore() {
     ? 5000 + Math.round((targetBeats - rhythmBeats) * 700)
     : Math.max(0, Math.round((targetBeats + 11 - rhythmBeats) * 460));
 
-  // v=152 mash timeBonus: fixed 5-second window. Each mash tap = +150pt here.
-  // greatCount attribution below adds another +150 → total +300 per mash tap.
-  // mashTimeSec retained in breakdown for legacy display only.
+  // v=153 mash mode: mashTimeBonus folded into mashScore (+400/tap directly).
   const totalClearSec = state.clearTime || rhythmSec;
   const mashTimeSec = Math.max(0, totalClearSec - rhythmSec);
-  const mashTimeBonus = (state.mashCount || 0) * 150;
+  const mashTimeBonus = 0;
 
   const timeBonus = rhythmTimeBonus + mashTimeBonus;
 
-  const greatForScore = (state.greatCount || 0) + (state.mashCount || 0);
-  const accuracyBase = (state.perfectCount || 0) * 400 + greatForScore * 150;
+  // v=153: mash taps go into goodCount in the payload, so accuracyBase here
+  // mirrors that — only real great counts contribute, NOT mashCount.
+  const accuracyBase = (state.perfectCount || 0) * 400 + (state.greatCount || 0) * 150;
   // FEVER bonus: 0.5x of base accuracy values for hits that landed during the
   // fever zone. Combined with the tap.js 1.5x runningScore multiplier this
   // delivers the user-facing "FEVER中は得点1.5倍" promise end-to-end.
@@ -108,9 +111,9 @@ export function computeFinalScore() {
     0.3,
     Math.min(1.0, optimalTaps / Math.max(taps || optimalTaps, optimalTaps))
   );
-  const raw = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus - decayPenalty;
+  const raw = hitScore + timeBonus + accuracyBonus + comboBonus + noMissBonus + mashScore - decayPenalty;
   const total = Math.max(0, Math.round(raw * efficiencyFactor));
-  state.scoreBreakdown = { hitScore, timeBonus, rhythmTimeBonus, mashTimeBonus, mashTimeSec, accuracyBonus, comboBonus, noMissBonus, decayPenalty, feverBonus, efficiencyFactor, total };
+  state.scoreBreakdown = { hitScore, timeBonus, rhythmTimeBonus, mashTimeBonus, mashTimeSec, mashScore, accuracyBonus, comboBonus, noMissBonus, decayPenalty, feverBonus, efficiencyFactor, total };
   return total;
 }
 

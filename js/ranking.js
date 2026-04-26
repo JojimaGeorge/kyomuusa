@@ -12,19 +12,19 @@ import { els } from './dom.js';
    with the clear/video/CTA animation (~6-8s) and the result is ready by
    the time the CTA panel needs it. */
 export async function submitScore() {
-  // state.taps already includes mash-phase taps (handleTap increments it before
-  // dispatching to doMashTap), but perfect/great/good/miss counters are NOT
-  // incremented during mash. Without compensation the server rejects with
-  // counts_do_not_sum. maxCombo is also bumped to mashCount(=mashTarget 30)
-  // during mash, so we need hits >= maxCombo. Solution: attribute mashCount
-  // taps to greatCount for the payload only — state itself stays untouched
-  // so HUD / CTA scoreboard keep showing the real numbers. Also clamp
-  // hitScore because combo-multiplied runningScore can exceed the server's
-  // per-tap cap (200).
+  // v=153 mash payload: mashTaps go into goodCount (zero accuracyBonus
+  // contribution), and hitScore is split into rhythm-only — mashScore is sent
+  // separately so the server's strict +400/tap formula can apply.
+  // counts_do_not_sum still passes because perfect+great+good+miss = taps.
   const mashTaps = state.mashCount | 0;
-  const tapsTotal = state.taps | 0; // already includes mashTaps
+  const tapsTotal = state.taps | 0; // includes mashTaps (handleTap ++ for every tap)
   const HIT_SCORE_PER_TAP_CAP = 300; // must match SANITY.hitScorePerTap in game-api/src/index.js
-  const hitScore = Math.min(state.runningScore | 0, HIT_SCORE_PER_TAP_CAP * tapsTotal);
+  // Strip mash-phase score from hitScore so the server can score mash via mashScore
+  // without double-counting. The server caps hitScore at hitScorePerTap * (taps - mashTaps).
+  const mashScore = state.mashRunningScore | 0;
+  const rhythmRunningScore = Math.max(0, (state.runningScore | 0) - mashScore);
+  const rhythmTaps = Math.max(0, tapsTotal - mashTaps);
+  const hitScore = Math.min(rhythmRunningScore, HIT_SCORE_PER_TAP_CAP * rhythmTaps);
   // beatIntervalMs lets the server compute beat-normalized timeBonus (kills the
   // tempo bias where faster BGM tracks earned bigger time bonuses). Fall back
   // to the TUNING default if state somehow never picked it up.
@@ -44,8 +44,8 @@ export async function submitScore() {
       clearTime: Number(state.rhythmClearSec || state.clearTime || 0),
       maxCombo: state.maxCombo | 0,
       perfectCount: state.perfectCount | 0,
-      greatCount: (state.greatCount | 0) + mashTaps,
-      goodCount: state.goodCount | 0,
+      greatCount: state.greatCount | 0,
+      goodCount: (state.goodCount | 0) + mashTaps,  // v=153: mash taps → goodCount
       missCount: state.missCount | 0,
       hitScore,
       decayTotal: Number(state.decayTotal || 0),
@@ -53,6 +53,8 @@ export async function submitScore() {
       mashTimeSec,
       mashWindowSec,
       mashTaps,
+      mashScore,
+      mashScoreVersion: 2,
       feverPerfectCount: state.feverPerfectCount | 0,
       feverGreatCount: state.feverGreatCount | 0,
       feverGoodCount: state.feverGoodCount | 0,

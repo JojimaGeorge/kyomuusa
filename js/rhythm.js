@@ -6,6 +6,7 @@ import { TUNING } from './config.js';
 import { state } from './state.js';
 import { els } from './dom.js';
 import { Snd, getAudioClockMs } from './sound.js';
+import { spawnCombo } from './effects.js';
 
 /* ---------- Rhythm tick decorations ---------- */
 export function buildTicks() {
@@ -148,6 +149,44 @@ export function updateIndicator(now) {
    One-judgement-per-beat: each beat index can be claimed by only one tap.
    Subsequent taps on an already-claimed beat are forced to miss, killing
    spam-tap strategies. */
+/* ---------- Missed-beat sweep (v=153) ----------
+   Each rAF tick, check whether any past beat lapsed without being tapped.
+   A beat is considered "missed" once heardMs > beatMs + goodWindowMs and
+   judgedBeats hasn't claimed it. Missed beats break the combo and increment
+   missCount/taps so a lazy player can't ride a streak across silent beats.
+   Skipped during mash (no rhythm grid) and after clear. */
+export function checkMissedBeats() {
+  if (!state.running || state.mashMode || state.cleared) return;
+  const meta = state.currentBgmMeta;
+  if (!meta || !TUNING.useAudioTimeSync) return;
+  const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
+  const latency = TUNING.beatLatencyMs || 0;
+  const audioMs = getAudioClockMs();
+  const heardMs = audioMs - latency;
+  const passedThreshold = heardMs - TUNING.goodWindowMs;
+  if (passedThreshold < meta.offsetMs) return;
+  const lastFullyPassedBeat = Math.floor((passedThreshold - meta.offsetMs) / interval);
+  if (lastFullyPassedBeat <= state.lastMissCheckBeat) return;
+  for (let n = state.lastMissCheckBeat + 1; n <= lastFullyPassedBeat; n++) {
+    if (n < 0) continue;
+    if (state.judgedBeats.has(n)) continue;
+    state.judgedBeats.add(n);
+    handleMissedBeat();
+  }
+  state.lastMissCheckBeat = lastFullyPassedBeat;
+}
+
+function handleMissedBeat() {
+  state.combo = 0;
+  state.perfectStreak = 0;
+  state.missCount++;
+  // taps++ keeps server-side counts_do_not_sum check happy
+  // (taps == perfect+great+good+miss).
+  state.taps++;
+  if (Snd && Snd.hit) Snd.hit('miss');
+  spawnCombo('miss', 'small');
+}
+
 export function judgeTap(now) {
   const interval = state.lastBeatInterval || TUNING.beatIntervalMs;
   const meta = state.currentBgmMeta;

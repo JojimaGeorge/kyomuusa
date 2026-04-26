@@ -50,13 +50,17 @@ export const state = {
   gifPendingAdvance: false,
   activeChar: 'A',
 
-  // Mash phase (v=152: fixed 5-second window — no tap target, count what you can)
+  // Mash phase (v=153: fixed 6-second window — no tap target, count what you can)
   mashMode: false,
   mashCount: 0,
-  mashWindowMs: 5000,
+  mashRunningScore: 0,  // v=153: mash-only score so payload can split rhythm vs mash
+  mashWindowMs: 6000,
   mashStartAt: 0,
   mashEndTimer: null,
   mashPending: false,
+  // missed-beat detection (v=153): tracks the highest beat index already
+  // checked so loop() doesn't rescan the entire judgedBeats set every frame.
+  lastMissCheckBeat: -1,
 
   // Fever (gauge >= FEVER_THRESHOLD until mash entry)
   feverActive: false,
