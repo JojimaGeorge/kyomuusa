@@ -183,10 +183,9 @@ function handleMissedBeat() {
   // taps++ keeps server-side counts_do_not_sum check happy
   // (taps == perfect+great+good+miss).
   state.taps++;
-  if (Snd && Snd.hit) Snd.hit('miss');
-  // Intentionally NO spawnCombo — silent penalty (combo break + sound only).
-  // Only tapped misses show the "miss" popup; lazy-skip beats are punished
-  // through the combo reset and audio cue without spamming the visual layer.
+  // Intentionally silent: no popup, no sound. Lazy-skip beats are punished
+  // through the combo reset alone — adding visual/audio cues for every silent
+  // beat would spam the player who wandered for a moment.
 }
 
 export function judgeTap(now) {

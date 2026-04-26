@@ -181,7 +181,7 @@
   .mash-overlay { padding-bottom: 30%; }
   .mash-title-wrap { width: 74%; max-width: 260px; margin-bottom: 10px; }
   .mash-counter { font-size: 76px; }
-  .mash-timer-wrap { margin-top: 10px; gap: 6px; }
+  .mash-timer-wrap { margin-top: 22px; gap: 6px; }
   .mash-timer-bar { width: 200px; height: 20px; }
   .mash-timer-text { font-size: 20px; letter-spacing: 2px; }
   .mash-instruction { font-size: 17px; margin-top: 6px; letter-spacing: 2px; }

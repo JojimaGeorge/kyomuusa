@@ -266,7 +266,7 @@
 
 /* v=153 mash timer — thicker bar, larger text. Square, no border-radius. */
 .mash-timer-wrap {
-  margin-top: 18px;
+  margin-top: 32px;
   display: flex; flex-direction: column; align-items: center;
   gap: 10px;
   opacity: 0;
