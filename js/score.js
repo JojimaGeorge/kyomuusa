@@ -40,13 +40,13 @@ export function rollNumber(el, from, to, duration = 900, onDone) {
 }
 
 export function computeRank(score) {
-  // SS added at the top (v=148); existing thresholds shifted down one tier.
-  // SS = god-tier (was the old S threshold), D-floor lowered to 16000.
-  if (score >= 38000) return 'SS';
-  if (score >= 32000) return 'S';
-  if (score >= 25000) return 'A';
-  if (score >= 18000) return 'B';
-  if (score >= 16000) return 'C';
+  // v=149 retune: tight 2000pt bands across the high-end. Concentrates rank
+  // differentiation in the 34k-42k window where most engaged plays land.
+  if (score >= 42000) return 'SS';
+  if (score >= 40000) return 'S';
+  if (score >= 38000) return 'A';
+  if (score >= 36000) return 'B';
+  if (score >= 34000) return 'C';
   return 'D';
 }
 
