@@ -27,12 +27,14 @@ export const Snd = (() => {
   // For constant "手前で反応" feel, shift offsetMs earlier (drift-free) OR lower
   // TUNING.beatLatencyMs. Do NOT touch bpm.
   const GAME_BGM_TRACKS = [
-    { src: './assets/musicA.mp3', bpm: 130.8, offsetMs: 487, title: 'Milky CasWay' },
-    { src: './assets/musicB.mp3', bpm: 131,   offsetMs: 468, title: 'Parallel CasNight' },
-    { src: './assets/musicC.mp3', bpm: 130.8, offsetMs: 862, title: 'Signals of CasLiver' },
+    { src: './assets/musicA.mp3', bpm: 130.8, offsetMs: 487,  title: 'Milky CasWay' },
+    { src: './assets/musicB.mp3', bpm: 131,   offsetMs: 468,  title: 'Parallel CasNight' },
+    { src: './assets/musicC.mp3', bpm: 130.8, offsetMs: 862,  title: 'Signals of CasLiver' },
+    { src: './assets/musicD.mp3', bpm: 126.7, offsetMs: 1700, title: 'Tropical CasSoda' },
+    { src: './assets/musicE.mp3', bpm: 137,   offsetMs: 1234, title: 'Sunset CasDrive' },
   ];
   const TITLE_BGM = './assets/music_title.mp3';
-  const CTA_BGM = './assets/music_end.mp3';
+  const CTA_BGM_TRACKS = ['./assets/music_endA.mp3', './assets/music_endB.mp3'];
   const BGM_VOLUME = 0.5;
   const SE_VOLUME = 0.85;
   const SE_FILES = {
@@ -286,7 +288,7 @@ export const Snd = (() => {
   };
   // Preload all BGM buffers in parallel. Safe to call multiple times — cache hit skips.
   const bgmPreload = () => {
-    const allSrcs = [TITLE_BGM, CTA_BGM, ...GAME_BGM_TRACKS.map(t => t.src)];
+    const allSrcs = [TITLE_BGM, ...CTA_BGM_TRACKS, ...GAME_BGM_TRACKS.map(t => t.src)];
     return Promise.all(allSrcs.map(s => loadBgmBuffer(s).catch(() => null)));
   };
   const teardownBgmSource = () => {
@@ -393,7 +395,10 @@ export const Snd = (() => {
     return track;
   };
   const getTrackList = () => GAME_BGM_TRACKS;
-  const ctaBgmStart = () => startBGM(CTA_BGM);
+  const ctaBgmStart = () => {
+    const src = CTA_BGM_TRACKS[Math.floor(Math.random() * CTA_BGM_TRACKS.length)];
+    startBGM(src);
+  };
   // AudioContext-derived playback position (seconds). Sample-accurate and monotonic.
   const bgmCurrentTime = () => {
     if (!ctx || !bgmSource || !bgmBufferDuration) return 0;
